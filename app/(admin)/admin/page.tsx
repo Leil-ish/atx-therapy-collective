@@ -12,24 +12,24 @@ export default function AdminDashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="bg-white/90">
-            <CardHeader>
-              <Badge>Join requests</Badge>
-              <CardTitle>Pending membership reviews</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm leading-7 text-muted-foreground">
-              Approve or reject endorsement-based join requests and validate therapist eligibility.
-            </CardContent>
-          </Card>
+          <CardHeader>
+            <Badge>Join requests</Badge>
+            <CardTitle>Pending membership reviews</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-7 text-muted-foreground">
+              Approve or reject referral-link-based join requests and validate therapist eligibility.
+          </CardContent>
+        </Card>
 
           <Card className="bg-white/90">
-            <CardHeader>
-              <Badge variant="outline">Moderation</Badge>
-              <CardTitle>Reported content queue</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm leading-7 text-muted-foreground">
-              Review reports tied to posts, groups, endorsements, or member behavior and capture resolution notes.
-            </CardContent>
-          </Card>
+          <CardHeader>
+            <Badge variant="outline">Moderation</Badge>
+            <CardTitle>Reported content queue</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm leading-7 text-muted-foreground">
+              Review reports tied to posts, groups, trusted-by statements, or member behavior and capture resolution notes.
+          </CardContent>
+        </Card>
 
           <Card className="bg-white/90">
             <CardHeader>

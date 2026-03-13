@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "atx-therapy-collective",
+  "account_id": "70b02f5e4f717f3928d82b4d7d0d31c4",
+  "main": ".open-next/worker.js",
+  "workers_dev": true,
+  "preview_urls": false,
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "NEXT_PUBLIC_APP_URL": "https://atx-therapy-collective.paper-archon.workers.dev",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://mlwdnvjzdnbmoveuccud.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sd2Rudmp6ZG5ibW92ZXVjY3VkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNDA2NTMsImV4cCI6MjA4ODkxNjY1M30.0z0OagFtPwPuvZtaQogVH2zSfC6viKHznoqN8wAYczQ",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY": "sb_publishable_CGsj59t5SJ9ogEsyTyv9rA_waiW9pvb"
+  },
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

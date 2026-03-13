@@ -3,9 +3,9 @@ import { SectionHeading } from "@/components/layout/section-heading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const steps = [
-  "A therapist receives an invitation or submits a join request tied to an endorsement from an active member.",
-  "Admin reviews the request, verifies fit, and sets membership to pending, active, rejected, or suspended.",
-  "Active therapist members access referrals, consultations, jobs, groups, and endorsement tools in the private workspace."
+  "A trusted member refers a therapist into the network through a referral link that doubles as a sponsorship path.",
+  "Admin verifies fit, keeps quality high, and activates therapists only after the referral and profile basics are in place.",
+  "Active members use the Collective before public listservs or Facebook groups when they need a trusted referral fast."
 ];
 
 export default function AboutPage() {
@@ -15,7 +15,7 @@ export default function AboutPage() {
         <SectionHeading
           eyebrow="How it works"
           title="Built for professional trust, not open-network growth"
-          description="ATX Therapy Collective is a therapist-centered platform that keeps public discovery simple and reserves deeper collaboration for verified members."
+          description="ATX Therapy Collective is designed for private-practice therapists and group practice owners who need a calmer, more credible local referral workflow."
         />
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -34,9 +34,9 @@ export default function AboutPage() {
             <CardTitle>MVP decisions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-            <p>Membership is endorsement-based only. There is no open self-serve therapist signup into full access.</p>
-            <p>Endorsements are lightweight and count toward monthly fee-waiver logic once they come from active members.</p>
-            <p>Austin is the launch market, but the schema and route naming stay city-agnostic so expansion remains straightforward later.</p>
+            <p>Public profile fields emphasize fit, style, trust, and current availability rather than trying to become a giant search taxonomy.</p>
+            <p>Trust stays simple in v1: trusted-by endorsements from active members, without gamified tiers or weighted social ranking.</p>
+            <p>Facilities, events, and algorithmic connection tiers remain later-phase so the Austin therapist experience can stay focused and dense first.</p>
           </CardContent>
         </Card>
       </section>

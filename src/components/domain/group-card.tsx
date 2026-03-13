@@ -17,7 +17,10 @@ export function GroupCard({ group, memberView = false }: { group: GroupSummary; 
         <p className="text-sm leading-6 text-muted-foreground">{group.description}</p>
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{group.memberCount} members</span>
-          <Link className="font-medium text-primary hover:text-primary/80" href={memberView ? `/member/groups/${group.slug}` : "/groups"}>
+          <Link
+            className="font-medium text-primary hover:text-primary/80"
+            href={memberView ? `/member/groups/${group.slug}` : `/groups/${group.id}`}
+          >
             {memberView ? "Open group" : "Learn more"}
           </Link>
         </div>

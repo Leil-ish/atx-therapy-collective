@@ -8,12 +8,14 @@ export function FeedCard({ item }: { item: FeedItem }) {
       <CardHeader className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <Badge>{item.kindLabel}</Badge>
+          <Badge variant="outline">{item.status}</Badge>
           <span className="text-sm text-muted-foreground">{item.createdAtLabel}</span>
         </div>
         <CardTitle className="text-2xl">{item.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-6 text-muted-foreground">{item.body}</p>
+        {item.availabilitySignal ? <p className="text-sm leading-6 text-muted-foreground">{item.availabilitySignal}</p> : null}
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Posted by {item.authorName}</span>
           <span className="font-medium text-primary">{item.ctaLabel}</span>

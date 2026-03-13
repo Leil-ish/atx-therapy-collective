@@ -16,10 +16,10 @@ export default function HomePage() {
           <div className="space-y-5">
             <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Austin-based therapist collective</p>
             <h1 className="max-w-3xl font-serif text-5xl leading-tight text-foreground md:text-7xl">
-              A calmer, more trusted way for Austin therapists to be known and connected.
+              Before you post in a Facebook group, check the Collective.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
-              Public profiles and groups help clients browse with confidence, while active members collaborate privately on referrals, consultation, hiring, and endorsement.
+              ATX Therapy Collective helps private-practice therapists and group practice owners find a trusted referral faster, signal who is actually available, and stay visible within a professional Austin network.
             </p>
           </div>
 
@@ -35,12 +35,12 @@ export default function HomePage() {
 
         <Card className="bg-white/85">
           <CardHeader>
-            <CardTitle>Invite-only by design</CardTitle>
+            <CardTitle>Built for professional trust</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-            <p>Therapists do not freely self-enroll into membership. Each join request is tied to an endorsement or invitation from an active member.</p>
-            <p>This keeps the community local, credible, and useful for real referral trust.</p>
-            <p>The private area is reserved for verified therapist members and admins only.</p>
+            <p>Therapists do not freely self-enroll into membership. Every application is tied to a trusted referrer and visible sponsor relationship.</p>
+            <p>Public profiles show meaningful fit signals, trusted-by endorsements, and current availability so referrals waste less time.</p>
+            <p>The private area stays reserved for active therapist members who need to move referrals, consultation, and job opportunities quickly.</p>
           </CardContent>
         </Card>
       </section>
@@ -49,7 +49,7 @@ export default function HomePage() {
         <SectionHeading
           eyebrow="Public directory"
           title="Featured therapist profiles"
-          description="Public-facing profiles stay lightweight for MVP: clear specialties, public endorsements, and enough signal for clients and peers to know who to contact."
+          description="Profiles now emphasize the signals therapists actually need in order to make a confident referral: fit, style, trusted-by relationships, and current availability."
         />
         <div className="grid gap-6 md:grid-cols-3">
           {therapists.map((therapist) => (
@@ -62,7 +62,7 @@ export default function HomePage() {
         <SectionHeading
           eyebrow="Public groups"
           title="Community visibility without exposing the private workspace"
-          description="Public groups help people understand the collective’s shape, while private collaboration remains inside the therapist-only area."
+          description="Groups support the brand and local density of the network, while the primary workflow remains trusted referrals inside the therapist-only space."
         />
         <div className="grid gap-6 md:grid-cols-2">
           {publicGroups.map((group) => (

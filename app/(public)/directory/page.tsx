@@ -10,7 +10,7 @@ export default function DirectoryPage() {
         <SectionHeading
           eyebrow="Directory"
           title="Austin therapists, presented with clarity"
-          description="This public directory is intentionally simple for MVP: search and filters can come next, but the initial release should center trust, fit, and local context."
+          description="This public directory stays intentionally focused: fit, style, trusted-by visibility, and current availability matter more than giant filter trees in the first release."
         />
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {therapists.map((therapist) => (

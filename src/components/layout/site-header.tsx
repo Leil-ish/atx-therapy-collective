@@ -1,14 +1,18 @@
 import Link from "next/link";
 
+import { signOut } from "@/app-actions/auth-actions";
+import { getSession } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
 
 const publicNav = [
   { href: "/directory", label: "Directory" },
   { href: "/groups", label: "Groups" },
   { href: "/about", label: "How it works" }
-];
+] as const;
 
-export function SiteHeader() {
+export async function SiteHeader() {
+  const session = await getSession();
+
   return (
     <header className="sticky top-0 z-20 border-b border-white/40 bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
@@ -31,9 +35,17 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Button asChild variant="ghost">
-            <Link href="/member">Member sign in</Link>
-          </Button>
+          {session ? (
+            <form action={signOut}>
+              <Button type="submit" variant="ghost">
+                Sign out
+              </Button>
+            </form>
+          ) : (
+            <Button asChild variant="ghost">
+              <Link href="/login">Member sign in</Link>
+            </Button>
+          )}
           <Button asChild variant="outline">
             <Link href="/about">Request an introduction</Link>
           </Button>
