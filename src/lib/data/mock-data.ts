@@ -18,6 +18,7 @@ function availabilityLabel(status: AvailabilityStatus) {
 export const therapists: PublicTherapistSummary[] = [
   {
     id: "therapist-1",
+    profileId: "profile-1",
     slug: "maya-hernandez-lcsw",
     displayName: "Maya Hernandez, LCSW",
     title: "Trauma-informed therapist for adults and couples",
@@ -26,7 +27,9 @@ export const therapists: PublicTherapistSummary[] = [
     specialties: ["Trauma", "Burnout", "Couples"],
     populations: ["Adults", "Couples", "Professionals"],
     insuranceAccepted: ["Out of network", "Aetna"],
+    paymentModel: "both",
     therapyStyleTags: ["Relational", "Trauma-informed", "Directive"],
+    neighborhoods: ["Central Austin"],
     endorsementCount: 9,
     membershipLabel: "Active member",
     city: "Austin",
@@ -43,6 +46,7 @@ export const therapists: PublicTherapistSummary[] = [
   },
   {
     id: "therapist-2",
+    profileId: "profile-2",
     slug: "julian-park-lpc",
     displayName: "Julian Park, LPC",
     title: "Anxiety, identity, and men’s mental health",
@@ -51,7 +55,9 @@ export const therapists: PublicTherapistSummary[] = [
     specialties: ["Anxiety", "Identity", "Men's mental health"],
     populations: ["Adults", "College students", "Creatives"],
     insuranceAccepted: ["Private pay", "Blue Cross Blue Shield"],
+    paymentModel: "both",
     therapyStyleTags: ["Collaborative", "Insight-oriented", "Relational"],
+    neighborhoods: ["South Austin"],
     endorsementCount: 6,
     membershipLabel: "Active member",
     city: "Austin",
@@ -65,6 +71,7 @@ export const therapists: PublicTherapistSummary[] = [
   },
   {
     id: "therapist-3",
+    profileId: "profile-3",
     slug: "nina-patel-lmft",
     displayName: "Nina Patel, LMFT",
     title: "Family systems and perinatal transitions",
@@ -73,7 +80,9 @@ export const therapists: PublicTherapistSummary[] = [
     specialties: ["Perinatal", "Families", "Attachment"],
     populations: ["Parents", "Families", "New mothers"],
     insuranceAccepted: ["Out of network", "UnitedHealthcare"],
+    paymentModel: "both",
     therapyStyleTags: ["Attachment-based", "Family systems", "Warm"],
+    neighborhoods: ["North Austin"],
     endorsementCount: 5,
     membershipLabel: "Active member",
     city: "Austin",
@@ -189,6 +198,7 @@ export const pendingJoinRequests: JoinRequestSummary[] = [
     credentials: "LPC-S",
     marketName: "Austin",
     sponsorName: "Maya Hernandez, LCSW",
+    referralCode: "ATX-MAYA-APRIL",
     createdAtLabel: "Today",
     status: "pending"
   },
@@ -199,6 +209,7 @@ export const pendingJoinRequests: JoinRequestSummary[] = [
     credentials: "LMFT",
     marketName: "Austin",
     sponsorName: "Julian Park, LPC",
+    referralCode: "ATX-MAYA-CONSULT",
     createdAtLabel: "Yesterday",
     status: "pending"
   }

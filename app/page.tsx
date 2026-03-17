@@ -4,11 +4,15 @@ import { GroupCard } from "@/components/domain/group-card";
 import { TherapistCard } from "@/components/domain/therapist-card";
 import { PageShell } from "@/components/layout/page-shell";
 import { SectionHeading } from "@/components/layout/section-heading";
+import { EmptyState } from "@/components/state/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { publicGroups, therapists } from "@/lib/data/mock-data";
+import { publicGroups } from "@/lib/data/mock-data";
+import { getPublicTherapists } from "@/lib/data/live-data";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const therapists = await getPublicTherapists();
+
   return (
     <PageShell>
       <section className="mx-auto grid max-w-6xl gap-10 px-6 py-16 md:grid-cols-[1.2fr_0.8fr] md:py-24">
@@ -51,11 +55,18 @@ export default function HomePage() {
           title="Featured therapist profiles"
           description="Profiles now emphasize the signals therapists actually need in order to make a confident referral: fit, style, trusted-by relationships, and current availability."
         />
-        <div className="grid gap-6 md:grid-cols-3">
-          {therapists.map((therapist) => (
-            <TherapistCard key={therapist.slug} therapist={therapist} />
-          ))}
-        </div>
+        {therapists.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-3">
+            {therapists.map((therapist) => (
+              <TherapistCard key={therapist.slug} therapist={therapist} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="Profiles are coming online"
+            description="As soon as active members complete their public profile basics, the featured therapist directory will appear here."
+          />
+        )}
       </section>
 
       <section className="mx-auto max-w-6xl space-y-8 px-6 py-12">

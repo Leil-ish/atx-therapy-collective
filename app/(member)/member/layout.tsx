@@ -5,7 +5,6 @@ import { requireMember } from "@/lib/auth/guards";
 const memberNav = [
   { href: "/member", label: "Dashboard" },
   { href: "/member/feed", label: "Feed" },
-  { href: "/member/groups", label: "Groups" },
   { href: "/member/referrals", label: "Referral links" },
   { href: "/member/posts/new", label: "Create post" },
   { href: "/member/endorsements", label: "Trusted by" },

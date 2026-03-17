@@ -3,16 +3,38 @@ import { PageShell } from "@/components/layout/page-shell";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getReferralLinkByCode } from "@/lib/data/mock-data";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+function getMessageCopy(error?: string) {
+  if (error === "invalid-code") return "That referral code could not be found.";
+  if (error === "expired-code") return "That referral code is inactive, expired, or already used.";
+  if (error === "email-mismatch") return "This referral code is reserved for a different email address.";
+  if (error === "already-submitted") return "An active or pending application already exists for this email.";
+  if (error === "submit-failed") return "We couldn't submit your application. Please try again.";
+  if (error === "missing-fields") return "Please fill in your name, email, credentials, and referral code.";
+  return null;
+}
 
 export default async function JoinApplyPage({
   searchParams
 }: {
-  searchParams?: Promise<{ code?: string }>;
+  searchParams?: Promise<{ code?: string; submitted?: string; error?: string }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
   const referralCode = params?.code?.trim() ?? "";
-  const referralLink = referralCode ? getReferralLinkByCode(referralCode) : undefined;
+  const admin = createSupabaseAdminClient();
+  const message = getMessageCopy(params?.error);
+  const { data: referralLink } = referralCode
+    ? await admin
+        .from("invitations")
+        .select("code, invited_email, is_active, max_uses, use_count, expires_at, invited_by")
+        .eq("code", referralCode.toUpperCase())
+        .maybeSingle()
+    : { data: null };
+
+  const sponsor = referralLink?.invited_by
+    ? await admin.from("profiles").select("full_name").eq("id", referralLink.invited_by).maybeSingle()
+    : { data: null };
 
   return (
     <PageShell>
@@ -28,18 +50,35 @@ export default async function JoinApplyPage({
             <CardTitle>Referral application</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {params?.submitted ? (
+              <div className="rounded-[24px] border bg-background p-4 text-sm leading-7 text-muted-foreground">
+                Application submitted. Once an admin approves your referral-backed request, you can sign in with a magic link and complete your member profile.
+              </div>
+            ) : null}
+            {message ? (
+              <div className="rounded-[24px] border bg-background p-4 text-sm leading-7 text-muted-foreground">
+                {message}
+              </div>
+            ) : null}
             {referralCode ? (
               <div className="rounded-[24px] border bg-background p-4 text-sm leading-7 text-muted-foreground">
                 {referralLink ? (
                   <>
                     <p>Referral code recognized.</p>
-                    <p>Sponsored by {referralLink.sponsorName}.</p>
-                    <p>{referralLink.expiresAtLabel}</p>
+                    <p>Sponsored by {sponsor.data?.full_name ?? "a trusted member"}.</p>
+                    <p>
+                      {referralLink.expires_at
+                        ? `Expires ${new Date(referralLink.expires_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric"
+                          })}`
+                        : "No expiration set."}
+                    </p>
                   </>
                 ) : (
                   <>
-                    <p>This referral code could not be verified in the current MVP mock data.</p>
-                    <p>You can still submit the form, but real Supabase validation should happen in the server action.</p>
+                    <p>This referral code could not be verified.</p>
+                    <p>You can still submit if you believe it is valid, but the request will be checked against the live invitation record.</p>
                   </>
                 )}
               </div>
@@ -47,6 +86,12 @@ export default async function JoinApplyPage({
             <form action={submitJoinApplication} className="space-y-4">
               <input className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" name="fullName" placeholder="Full name" />
               <input className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" name="email" placeholder="Email" type="email" />
+              <input className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" name="credentials" placeholder="Credentials (e.g. LPC, LCSW, LMFT)" />
+              <input
+                className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
+                name="licenseNumber"
+                placeholder="License number (optional)"
+              />
               <input
                 className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
                 name="websiteUrl"
@@ -55,7 +100,7 @@ export default async function JoinApplyPage({
               />
               <input
                 className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
-                defaultValue={referralCode}
+                defaultValue={referralCode.toUpperCase()}
                 name="referralCode"
                 placeholder="Referral code"
               />

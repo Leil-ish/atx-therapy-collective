@@ -1,5 +1,5 @@
 import type { AppSession } from "@/types";
-import { bootstrapProfileForUser } from "@/lib/auth/bootstrap";
+import { bootstrapProfileForUser, syncMembershipStateForUser } from "@/lib/auth/bootstrap";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function getSession(): Promise<AppSession | null> {
@@ -11,6 +11,8 @@ export async function getSession(): Promise<AppSession | null> {
   if (!user) {
     return null;
   }
+
+  await syncMembershipStateForUser(user);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -36,6 +38,7 @@ export async function getSession(): Promise<AppSession | null> {
       role: bootstrappedProfile.role,
       membershipState: bootstrappedProfile.membership_state,
       fullName: bootstrappedProfile.full_name,
+      email: user.email ?? "",
       canIssueReferrals: bootstrappedProfile.can_issue_referrals
     };
   }
@@ -45,6 +48,7 @@ export async function getSession(): Promise<AppSession | null> {
     role: profile.role,
     membershipState: profile.membership_state,
     fullName: profile.full_name,
+    email: user.email ?? "",
     canIssueReferrals: profile.can_issue_referrals
   };
 }

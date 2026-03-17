@@ -1,0 +1,93 @@
+import { redirect } from "next/navigation";
+
+import { signOut } from "@/app-actions/auth-actions";
+import { PageShell } from "@/components/layout/page-shell";
+import { SectionHeading } from "@/components/layout/section-heading";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSession } from "@/lib/auth/session";
+import { getLatestJoinRequestByEmail } from "@/lib/data/live-data";
+import type { MembershipState } from "@/types";
+
+function getStateCopy(state: MembershipState, rejectionReason?: string | null) {
+  if (state === "active") {
+    return {
+      title: "Membership active",
+      body: "Your membership is active. Continue into the member workspace."
+    };
+  }
+
+  if (state === "rejected") {
+    return {
+      title: "Membership not approved",
+      body:
+        rejectionReason?.trim() ||
+        "Your application is not currently approved. If this seems incorrect, reach out to the collective admin."
+    };
+  }
+
+  if (state === "suspended") {
+    return {
+      title: "Membership paused",
+      body: "Your member access is currently paused. Reach out to the collective admin if you need clarification."
+    };
+  }
+
+  return {
+    title: "Application under review",
+    body: "You are signed in, but your membership is still pending review. We’ll open the member workspace as soon as your referral-backed application is approved."
+  };
+}
+
+export default async function MemberAccessPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ state?: string }>;
+}) {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  if (session.membershipState === "active" || session.role === "admin") {
+    redirect("/member");
+  }
+
+  const params = searchParams ? await searchParams : undefined;
+  const latestJoinRequest = await getLatestJoinRequestByEmail(session.email);
+  const state = (params?.state as MembershipState | undefined) ?? latestJoinRequest?.status ?? session.membershipState;
+  const copy = getStateCopy(state, latestJoinRequest?.rejection_reason);
+
+  return (
+    <PageShell>
+      <section className="mx-auto max-w-3xl space-y-8 px-6 py-16">
+        <SectionHeading
+          eyebrow="Member access"
+          title={copy.title}
+          description="The collective is invite-only and therapist access stays gated by manual review, even after sign-in."
+        />
+
+        <Card className="bg-white/90">
+          <CardHeader>
+            <CardTitle>{copy.title}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
+            <p>{copy.body}</p>
+            <p>Signed in as {session.email}.</p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button asChild variant="outline">
+                <a href="/about">See how membership works</a>
+              </Button>
+              <form action={signOut}>
+                <Button type="submit" variant="ghost">
+                  Sign out
+                </Button>
+              </form>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+    </PageShell>
+  );
+}

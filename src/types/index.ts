@@ -4,6 +4,7 @@ export type GroupVisibility = "public" | "private_member_only";
 export type PostType = "referral_request" | "consultation_request" | "job";
 export type AvailabilityStatus = "accepting" | "waitlist" | "full";
 export type ReferralStatus = "open" | "matched" | "declined" | "closed";
+export type PaymentModel = "private_pay" | "insurance" | "both";
 
 export interface TrustedByConnection {
   id: string;
@@ -13,6 +14,7 @@ export interface TrustedByConnection {
 
 export interface PublicTherapistSummary {
   id: string;
+  profileId: string;
   slug: string;
   displayName: string;
   title: string;
@@ -21,7 +23,9 @@ export interface PublicTherapistSummary {
   specialties: string[];
   populations: string[];
   insuranceAccepted: string[];
+  paymentModel: PaymentModel;
   therapyStyleTags: string[];
+  neighborhoods: string[];
   endorsementCount: number;
   membershipLabel: string;
   city: string;
@@ -73,10 +77,12 @@ export interface JoinRequestSummary {
   fullName: string;
   email: string;
   credentials: string;
+  licenseNumber?: string;
   marketName: string;
   sponsorName: string;
+  referralCode: string;
   createdAtLabel: string;
-  status: "pending" | "approved" | "rejected";
+  status: MembershipState;
 }
 
 export interface ModerationReportSummary {
@@ -104,5 +110,6 @@ export interface AppSession {
   role: UserRole;
   membershipState: MembershipState;
   fullName: string;
+  email: string;
   canIssueReferrals?: boolean;
 }

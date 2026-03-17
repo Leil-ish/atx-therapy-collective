@@ -8,6 +8,7 @@ create type public.availability_status as enum ('accepting', 'waitlist', 'full')
 create type public.referral_status as enum ('open', 'matched', 'declined', 'closed');
 create type public.moderation_target_type as enum ('post', 'endorsement', 'group', 'profile');
 create type public.moderation_status as enum ('open', 'reviewing', 'resolved', 'dismissed');
+create type public.payment_model as enum ('private_pay', 'insurance', 'both');
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -40,6 +41,7 @@ create table public.therapist_profiles (
   bio text,
   specialties text[] not null default '{}',
   insurance_accepted text[] not null default '{}',
+  payment_model public.payment_model not null default 'both',
   modalities text[] not null default '{}',
   therapy_style_tags text[] not null default '{}',
   populations text[] not null default '{}',
@@ -91,6 +93,7 @@ create table public.join_requests (
   note text,
   endorsement_from_profile_id uuid not null references public.profiles(id),
   invitation_id uuid not null references public.invitations(id),
+  grant_referral_access boolean not null default false,
   status public.membership_state not null default 'pending',
   reviewed_by uuid references public.profiles(id),
   reviewed_at timestamptz,
@@ -390,6 +393,7 @@ select
   tp.bio,
   tp.specialties,
   tp.insurance_accepted,
+  tp.payment_model,
   tp.modalities,
   tp.therapy_style_tags,
   tp.populations,

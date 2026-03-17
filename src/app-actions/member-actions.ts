@@ -1,61 +1,300 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireMember } from "@/lib/auth/guards";
-import { getReferralLinkByCode } from "@/lib/data/mock-data";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { AvailabilityStatus, PaymentModel, PostType } from "@/types";
 
-// Example server action shape for future form wiring.
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function parseCommaSeparatedList(value: FormDataEntryValue | null, limit?: number) {
+  const items = String(value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return typeof limit === "number" ? items.slice(0, limit) : items;
+}
+
+function buildReferralCode() {
+  return `ATX-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
+}
+
 export async function createMemberPost(formData: FormData) {
-  await requireMember();
+  const session = await requireMember();
+  const supabase = await createSupabaseServerClient();
 
+  const type = String(formData.get("type") ?? "referral_request").trim() as PostType;
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
-  const type = String(formData.get("type") ?? "").trim();
+  const insuranceNotes = String(formData.get("insurance") ?? "").trim();
+  const styleNotes = String(formData.get("style") ?? "").trim();
 
-  if (!title || !body || !type) {
-    return;
+  if (!title || !body) {
+    redirect("/member/posts/new?error=missing-fields");
   }
 
-  // TODO: Insert into Supabase `posts` and typed detail table in a single transaction-like flow.
+  const { data: post, error: postError } = await supabase
+    .from("posts")
+    .insert({
+      author_profile_id: session.userId,
+      kind: type,
+      title,
+      body,
+      market_slug: "austin-tx",
+      is_private: true,
+      is_published: true
+    })
+    .select("id")
+    .single();
+
+  if (postError || !post) {
+    redirect("/member/posts/new?error=save-failed");
+  }
+
+  if (type === "referral_request") {
+    await supabase.from("referral_requests").insert({
+      post_id: post.id,
+      insurance_notes: insuranceNotes || null,
+      urgency: styleNotes || null,
+      status: "open"
+    });
+  }
+
+  if (type === "consultation_request") {
+    await supabase.from("consultation_requests").insert({
+      post_id: post.id,
+      topic: styleNotes || null,
+      compensation_notes: insuranceNotes || null
+    });
+  }
+
+  if (type === "job") {
+    await supabase.from("jobs").insert({
+      post_id: post.id,
+      organization_name: title,
+      compensation_summary: insuranceNotes || null,
+      location_summary: styleNotes || null
+    });
+  }
+
+  revalidatePath("/member");
   revalidatePath("/member/feed");
+  redirect("/member/feed?created=1");
 }
 
 export async function submitJoinApplication(formData: FormData) {
+  const admin = createSupabaseAdminClient();
+
   const fullName = String(formData.get("fullName") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  const credentials = String(formData.get("credentials") ?? "").trim();
+  const licenseNumber = String(formData.get("licenseNumber") ?? "").trim();
   const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
-  const referralCode = String(
-    formData.get("referralCode") ?? formData.get("referralCodeVisible") ?? ""
-  ).trim();
+  const referralCode = String(formData.get("referralCode") ?? "").trim().toUpperCase();
+  const note = String(formData.get("note") ?? "").trim();
 
-  if (!fullName || !email || !referralCode) {
-    return;
+  if (!fullName || !email || !credentials || !referralCode) {
+    redirect("/join/apply?error=missing-fields");
   }
 
-  const invitation = getReferralLinkByCode(referralCode);
+  const { data: invitation } = await admin
+    .from("invitations")
+    .select("id, code, invited_by, invited_email, is_active, use_count, max_uses, expires_at")
+    .eq("code", referralCode)
+    .maybeSingle();
 
-  if (!invitation || !invitation.isActive || invitation.useCount >= invitation.maxUses) {
-    return;
+  if (!invitation) {
+    redirect("/join/apply?error=invalid-code");
   }
 
-  // TODO: Validate against Supabase `invitations`, then insert a `join_requests` row including `websiteUrl`.
+  const isExpired =
+    typeof invitation.expires_at === "string" && new Date(invitation.expires_at).getTime() < Date.now();
+
+  if (!invitation.is_active || invitation.use_count >= invitation.max_uses || isExpired) {
+    redirect("/join/apply?error=expired-code");
+  }
+
+  if (invitation.invited_email && normalizeEmail(invitation.invited_email) !== email) {
+    redirect("/join/apply?error=email-mismatch");
+  }
+
+  const { data: existingRequest } = await admin
+    .from("join_requests")
+    .select("id, status")
+    .ilike("email", email)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingRequest?.status === "pending" || existingRequest?.status === "active") {
+    redirect("/join/apply?error=already-submitted");
+  }
+
+  const { error } = await admin.from("join_requests").insert({
+    email,
+    full_name: fullName,
+    city: "Austin",
+    state_region: "TX",
+    market_slug: "austin-tx",
+    credentials,
+    license_number: licenseNumber || null,
+    website_url: websiteUrl || null,
+    note: note || null,
+    endorsement_from_profile_id: invitation.invited_by,
+    invitation_id: invitation.id,
+    status: "pending"
+  });
+
+  if (error) {
+    redirect("/join/apply?error=submit-failed");
+  }
+
+  revalidatePath("/admin/join-requests");
+  redirect("/join/apply?submitted=1");
 }
 
 export async function createReferralLink(formData: FormData) {
   const session = await requireMember();
 
   if (!session.canIssueReferrals) {
-    return;
+    redirect("/member/referrals?error=not-allowed");
   }
 
-  const invitedEmail = String(formData.get("invitedEmail") ?? "").trim();
+  const admin = createSupabaseAdminClient();
+  const invitedEmail = normalizeEmail(String(formData.get("invitedEmail") ?? ""));
   const maxUses = Number(formData.get("maxUses") ?? "1");
 
   if (Number.isNaN(maxUses) || maxUses < 1) {
-    return;
+    redirect("/member/referrals?error=invalid-link");
   }
 
-  // TODO: Insert a row into Supabase `invitations` and return the generated code.
+  const { error } = await admin.from("invitations").insert({
+    code: buildReferralCode(),
+    invited_email: invitedEmail || null,
+    invited_by: session.userId,
+    max_uses: maxUses,
+    market_slug: "austin-tx",
+    is_active: true,
+    expires_at: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString()
+  });
+
+  if (error) {
+    redirect("/member/referrals?error=create-failed");
+  }
+
   revalidatePath("/member/referrals");
+  redirect("/member/referrals?created=1");
+}
+
+export async function saveMemberProfile(formData: FormData) {
+  const session = await requireMember();
+  const supabase = await createSupabaseServerClient();
+
+  const publicDisplayName = String(formData.get("publicDisplayName") ?? "").trim();
+  const credentials = String(formData.get("credentials") ?? "").trim();
+  const bio = String(formData.get("bio") ?? "").trim();
+  const approachSummary = String(formData.get("approachSummary") ?? "").trim();
+  const specialties = parseCommaSeparatedList(formData.get("specialties"), 5);
+  const neighborhoods = parseCommaSeparatedList(formData.get("neighborhoods"), 3);
+  const insuranceAccepted = parseCommaSeparatedList(formData.get("insuranceAccepted"), 5);
+  const availabilityStatus = String(formData.get("availabilityStatus") ?? "waitlist").trim() as AvailabilityStatus;
+  const paymentModel = String(formData.get("paymentModel") ?? "both").trim() as PaymentModel;
+  const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
+  const bookingUrl = String(formData.get("bookingUrl") ?? "").trim();
+  const offersInPerson = formData.get("offersInPerson") === "on";
+  const offersTelehealth = formData.get("offersTelehealth") === "on";
+  const isPublic = formData.get("isPublic") === "on";
+
+  if (!publicDisplayName || !credentials || !bio || specialties.length === 0 || (!offersInPerson && !offersTelehealth)) {
+    redirect("/member/profile?error=missing-fields");
+  }
+
+  const { error: therapistError } = await supabase
+    .from("therapist_profiles")
+    .update({
+      public_display_name: publicDisplayName,
+      credentials,
+      bio,
+      approach_summary: approachSummary || null,
+      specialties,
+      neighborhoods,
+      insurance_accepted: insuranceAccepted,
+      availability_status: availabilityStatus,
+      offers_in_person: offersInPerson,
+      offers_telehealth: offersTelehealth,
+      accepting_referrals: availabilityStatus !== "full",
+      payment_model: paymentModel,
+      website_url: websiteUrl || null,
+      booking_url: bookingUrl || null,
+      is_public: isPublic
+    })
+    .eq("profile_id", session.userId);
+
+  if (therapistError) {
+    redirect("/member/profile?error=save-failed");
+  }
+
+  await supabase
+    .from("profiles")
+    .update({
+      full_name: publicDisplayName,
+      city: "Austin",
+      state_region: "TX"
+    })
+    .eq("id", session.userId);
+
+  revalidatePath("/member/profile");
+  revalidatePath("/member");
+  revalidatePath("/directory");
+  redirect("/member/profile?saved=1");
+}
+
+export async function createEndorsement(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const endorsedProfileId = String(formData.get("endorsedProfileId") ?? "").trim();
+  const quote = String(formData.get("quote") ?? "").trim();
+  const isPublic = formData.get("isPublic") === "on";
+
+  if (!endorsedProfileId || !quote || endorsedProfileId === session.userId) {
+    redirect("/member/endorsements?error=invalid-endorsement");
+  }
+
+  const { data: therapistProfile } = await admin
+    .from("therapist_profiles")
+    .select("id")
+    .eq("profile_id", endorsedProfileId)
+    .maybeSingle();
+
+  if (!therapistProfile) {
+    redirect("/member/endorsements?error=missing-target");
+  }
+
+  const { error } = await admin.from("endorsements").upsert(
+    {
+      therapist_profile_id: therapistProfile.id,
+      endorsed_profile_id: endorsedProfileId,
+      endorser_profile_id: session.userId,
+      public_quote: quote,
+      is_public: isPublic
+    },
+    {
+      onConflict: "endorsed_profile_id,endorser_profile_id"
+    }
+  );
+
+  if (error) {
+    redirect("/member/endorsements?error=save-failed");
+  }
+
+  revalidatePath("/member/endorsements");
+  revalidatePath("/directory");
+  redirect("/member/endorsements?saved=1");
 }

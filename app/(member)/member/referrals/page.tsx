@@ -4,10 +4,37 @@ import { EmptyState } from "@/components/state/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
-import { referralLinks } from "@/lib/data/mock-data";
+import { getReferralLinksForMember } from "@/lib/data/live-data";
 
-export default async function MemberReferralsPage() {
+function getStatusCopy(error?: string, created?: string) {
+  if (created) {
+    return "Referral link created.";
+  }
+
+  if (error === "not-allowed") {
+    return "You do not have referral-link privileges yet.";
+  }
+
+  if (error === "create-failed") {
+    return "We couldn't create that referral link. Please try again.";
+  }
+
+  if (error === "invalid-link") {
+    return "Please choose a valid invitation setup.";
+  }
+
+  return null;
+}
+
+export default async function MemberReferralsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ created?: string; error?: string }>;
+}) {
   const session = await getSession();
+  const params = searchParams ? await searchParams : undefined;
+  const statusCopy = getStatusCopy(params?.error, params?.created);
+  const referralLinks = session ? await getReferralLinksForMember(session.userId, session.fullName) : [];
 
   return (
     <div className="space-y-6">
@@ -19,6 +46,7 @@ export default async function MemberReferralsPage() {
           <p>
             Referral links are the only therapist onboarding path in MVP. Each link acts as the sponsorship path and should only be issued by trusted members.
           </p>
+          {statusCopy ? <div className="rounded-[24px] border bg-background p-4">{statusCopy}</div> : null}
           {session?.canIssueReferrals ? (
             <form action={createReferralLink} className="space-y-4">
               <input
@@ -42,11 +70,18 @@ export default async function MemberReferralsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {referralLinks.map((referralLink) => (
-          <ReferralLinkCard key={referralLink.id} referralLink={referralLink} />
-        ))}
-      </div>
+      {referralLinks.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2">
+          {referralLinks.map((referralLink) => (
+            <ReferralLinkCard key={referralLink.id} referralLink={referralLink} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="No referral links yet"
+          description="Once you issue referral links, they'll appear here with usage counts and expiration details."
+        />
+      )}
     </div>
   );
 }

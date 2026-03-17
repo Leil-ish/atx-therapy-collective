@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/layout/page-shell";
-import { getAvailabilityLabel, therapists } from "@/lib/data/mock-data";
+import {
+  getAvailabilityLabel,
+  getPaymentModelLabelForUi,
+  getPublicTherapistBySlug
+} from "@/lib/data/live-data";
 
 export default async function TherapistProfilePage({
   params
@@ -11,7 +15,7 @@ export default async function TherapistProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const therapist = therapists.find((item) => item.slug === slug);
+  const therapist = await getPublicTherapistBySlug(slug);
 
   if (!therapist) {
     notFound();
@@ -51,7 +55,7 @@ export default async function TherapistProfilePage({
               </div>
               <div>
                 <p className="font-medium text-foreground">Insurance</p>
-                <p>{therapist.insuranceAccepted.join(", ")}</p>
+                <p>{therapist.insuranceAccepted.length > 0 ? therapist.insuranceAccepted.join(", ") : getPaymentModelLabelForUi(therapist.paymentModel)}</p>
               </div>
               <div>
                 <p className="font-medium text-foreground">Care format</p>
@@ -60,6 +64,14 @@ export default async function TherapistProfilePage({
               <div>
                 <p className="font-medium text-foreground">Availability freshness</p>
                 <p>{therapist.availabilityUpdatedAtLabel}</p>
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Payment model</p>
+                <p>{getPaymentModelLabelForUi(therapist.paymentModel)}</p>
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Neighborhoods</p>
+                <p>{therapist.neighborhoods.length > 0 ? therapist.neighborhoods.join(", ") : "Austin"}</p>
               </div>
             </div>
           </CardContent>

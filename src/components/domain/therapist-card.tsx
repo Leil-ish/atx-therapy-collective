@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAvailabilityLabel } from "@/lib/data/mock-data";
+import { getAvailabilityLabel, getPaymentModelLabelForUi } from "@/lib/data/live-data";
 import type { PublicTherapistSummary } from "@/types";
 
 export function TherapistCard({ therapist }: { therapist: PublicTherapistSummary }) {
@@ -38,9 +38,16 @@ export function TherapistCard({ therapist }: { therapist: PublicTherapistSummary
           ))}
         </div>
         <div className="space-y-2 text-sm text-muted-foreground">
+          <p>{getPaymentModelLabelForUi(therapist.paymentModel)}</p>
+          {therapist.neighborhoods.length > 0 ? <p>{therapist.neighborhoods.join(", ")}</p> : null}
           <p>{therapist.city} · {therapist.inPerson ? "In person" : ""}{therapist.inPerson && therapist.telehealth ? " + " : ""}{therapist.telehealth ? "Telehealth" : ""}</p>
           <p>{therapist.availabilityUpdatedAtLabel}</p>
-          <p>Trusted by {therapist.trustedBy.map((connection) => connection.name).join(", ")}</p>
+          <p>
+            Trusted by{" "}
+            {therapist.trustedBy.length > 0
+              ? therapist.trustedBy.map((connection) => connection.name).join(", ")
+              : "active members in the collective"}
+          </p>
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{therapist.endorsementCount} trusted-by endorsements</span>
