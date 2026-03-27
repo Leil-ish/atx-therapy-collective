@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { GroupCard } from "@/components/domain/group-card";
@@ -10,7 +11,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { publicGroups } from "@/lib/data/mock-data";
 import { getPublicTherapists } from "@/lib/data/live-data";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams
+}: {
+  searchParams?: Promise<{ code?: string; next?: string }>;
+}) {
+  const params = searchParams ? await searchParams : undefined;
+  const code = params?.code?.trim();
+  const next = params?.next?.trim();
+
+  if (code) {
+    const callbackUrl = next
+      ? `/auth/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`
+      : `/auth/callback?code=${encodeURIComponent(code)}`;
+    redirect(callbackUrl as never);
+  }
+
   const therapists = await getPublicTherapists();
 
   return (
