@@ -78,6 +78,10 @@ function formatCreatedAtLabel(value?: string | null) {
   });
 }
 
+function getAppUrl() {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
 export function getAvailabilityLabel(status: AvailabilityStatus) {
   if (status === "accepting") return "Accepting new clients";
   if (status === "waitlist") return "Limited openings";
@@ -288,7 +292,11 @@ export async function getMemberFeedItems() {
       authorName: authors.get(String(post.author_profile_id)) ?? "Therapist",
       createdAtLabel: formatCreatedAtLabel(post.created_at as string | null),
       ctaLabel:
-        type === "consultation_request" ? "Offer consult" : type === "job" ? "View details" : "Reply in thread",
+        type === "consultation_request"
+          ? "I'm open to consult"
+          : type === "job"
+            ? "Review this opening"
+            : "I'm available for this referral",
       status: String(referralDetail?.status ?? "open") as FeedItem["status"],
       availabilitySignal:
         typeof referralDetail?.insurance_notes === "string" && referralDetail.insurance_notes.trim().length > 0
@@ -300,28 +308,44 @@ export async function getMemberFeedItems() {
 
 export async function getReferralLinksForMember(userId: string, sponsorName: string) {
   const admin = createSupabaseAdminClient();
+  const appUrl = getAppUrl();
   const { data: rawInvitations } = await admin
     .from("invitations")
     .select("id, code, invited_email, max_uses, use_count, is_active, expires_at")
     .eq("invited_by", userId)
     .order("created_at", { ascending: false });
 
-  return ((rawInvitations ?? []) as Array<Record<string, unknown>>).map((invitation) => ({
-    id: String(invitation.id),
-    code: String(invitation.code),
-    sponsorName,
-    invitedEmail:
+  return ((rawInvitations ?? []) as Array<Record<string, unknown>>).map((invitation) => {
+    const code = String(invitation.code);
+    const invitedEmail =
       typeof invitation.invited_email === "string" && invitation.invited_email.length > 0
         ? invitation.invited_email
-        : undefined,
-    maxUses: Number(invitation.max_uses ?? 1),
-    useCount: Number(invitation.use_count ?? 0),
-    expiresAtLabel:
-      invitation.expires_at && typeof invitation.expires_at === "string"
-        ? `Expires ${new Date(invitation.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-        : "No expiration",
-    isActive: Boolean(invitation.is_active)
-  })) satisfies ReferralLinkSummary[];
+        : undefined;
+    const inviteUrl = `${appUrl}/join/apply?code=${encodeURIComponent(code)}`;
+    const emailInviteHref = invitedEmail
+      ? `mailto:${encodeURIComponent(invitedEmail)}?subject=${encodeURIComponent(
+          "Invitation to join ATX Therapy Collective"
+        )}&body=${encodeURIComponent(
+          `Hi,\n\nI'd love to invite you to join ATX Therapy Collective.\n\nUse this referral link to apply:\n${inviteUrl}\n\nIf the link does not prefill the code, use: ${code}\n\nBest,\n${sponsorName}`
+        )}`
+      : undefined;
+
+    return {
+      id: String(invitation.id),
+      code,
+      sponsorName,
+      invitedEmail,
+      maxUses: Number(invitation.max_uses ?? 1),
+      useCount: Number(invitation.use_count ?? 0),
+      expiresAtLabel:
+        invitation.expires_at && typeof invitation.expires_at === "string"
+          ? `Expires ${new Date(invitation.expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+          : "No expiration",
+      isActive: Boolean(invitation.is_active),
+      inviteUrl,
+      emailInviteHref
+    };
+  }) satisfies ReferralLinkSummary[];
 }
 
 export async function getEndorsementsForMember(profileId: string) {
@@ -438,21 +462,39 @@ export async function getLatestJoinRequestByEmail(email: string) {
 
   const { data } = await admin
     .from("join_requests")
-    .select("id, status, reviewed_at, rejection_reason, created_at")
+    .select("id, status, reviewed_at, rejection_reason, created_at, invitation_id, endorsement_from_profile_id, credentials")
     .ilike("email", normalizedEmail)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  return data as
-    | {
-        id: string;
-        status: "pending" | "active" | "rejected" | "suspended";
-        reviewed_at?: string | null;
-        rejection_reason?: string | null;
-        created_at?: string | null;
-      }
-    | null;
+  if (!data) {
+    return null;
+  }
+
+  const [invitationResult, sponsorResult] = await Promise.all([
+    admin
+      .from("invitations")
+      .select("id, code")
+      .eq("id", String(data.invitation_id))
+      .maybeSingle(),
+    admin
+      .from("profiles")
+      .select("id, full_name")
+      .eq("id", String(data.endorsement_from_profile_id))
+      .maybeSingle()
+  ]);
+
+  return {
+    id: String(data.id),
+    status: String(data.status ?? "pending") as "pending" | "active" | "rejected" | "suspended",
+    reviewed_at: (data.reviewed_at as string | null) ?? null,
+    rejection_reason: (data.rejection_reason as string | null) ?? null,
+    created_at: (data.created_at as string | null) ?? null,
+    referral_code: invitationResult.data?.code ?? null,
+    sponsor_name: sponsorResult.data?.full_name ?? null,
+    credentials: (data.credentials as string | null) ?? null
+  };
 }
 
 export async function getMemberProfileForUser(profileId: string) {

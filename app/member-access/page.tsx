@@ -75,6 +75,25 @@ export default async function MemberAccessPage({
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
             <p>{copy.body}</p>
             <p>Signed in as {session.email}.</p>
+            {latestJoinRequest ? (
+              <div className="rounded-[24px] border bg-background p-4">
+                <p className="font-medium text-foreground">Most recent application</p>
+                <p>Status: {latestJoinRequest.status}</p>
+                {latestJoinRequest.credentials ? <p>Credentials: {latestJoinRequest.credentials}</p> : null}
+                {latestJoinRequest.sponsor_name ? <p>Sponsored by: {latestJoinRequest.sponsor_name}</p> : null}
+                {latestJoinRequest.referral_code ? <p>Referral code: {latestJoinRequest.referral_code}</p> : null}
+                {latestJoinRequest.created_at ? (
+                  <p>
+                    Submitted:{" "}
+                    {new Date(latestJoinRequest.created_at).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric"
+                    })}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-3 pt-2">
               <Button asChild variant="outline">
                 <a href="/about">See how membership works</a>

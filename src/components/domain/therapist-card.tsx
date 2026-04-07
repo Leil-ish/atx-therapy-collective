@@ -6,6 +6,10 @@ import { getAvailabilityLabel, getPaymentModelLabelForUi } from "@/lib/data/live
 import type { PublicTherapistSummary } from "@/types";
 
 export function TherapistCard({ therapist }: { therapist: PublicTherapistSummary }) {
+  const careFormat = [therapist.inPerson ? "In person" : null, therapist.telehealth ? "Telehealth" : null]
+    .filter(Boolean)
+    .join(" + ");
+
   return (
     <Card className="h-full bg-white/90">
       <CardHeader>
@@ -22,25 +26,25 @@ export function TherapistCard({ therapist }: { therapist: PublicTherapistSummary
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm leading-6 text-muted-foreground">{therapist.bio}</p>
-        <p className="text-sm leading-6 text-muted-foreground">{therapist.approachSummary}</p>
         <div className="flex flex-wrap gap-2">
-          {therapist.specialties.map((specialty) => (
+          {therapist.specialties.slice(0, 5).map((specialty) => (
             <Badge key={specialty} variant="muted">
               {specialty}
             </Badge>
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          {therapist.therapyStyleTags.map((tag) => (
+          {therapist.therapyStyleTags.slice(0, 3).map((tag) => (
             <Badge key={tag} variant="outline">
               {tag}
             </Badge>
           ))}
         </div>
         <div className="space-y-2 text-sm text-muted-foreground">
+          <p>{therapist.approachSummary}</p>
           <p>{getPaymentModelLabelForUi(therapist.paymentModel)}</p>
-          {therapist.neighborhoods.length > 0 ? <p>{therapist.neighborhoods.join(", ")}</p> : null}
-          <p>{therapist.city} · {therapist.inPerson ? "In person" : ""}{therapist.inPerson && therapist.telehealth ? " + " : ""}{therapist.telehealth ? "Telehealth" : ""}</p>
+          {therapist.neighborhoods.length > 0 ? <p>{therapist.neighborhoods.join(", ")}</p> : <p>{therapist.city}</p>}
+          <p>{careFormat || therapist.city}</p>
           <p>{therapist.availabilityUpdatedAtLabel}</p>
           <p>
             Trusted by{" "}

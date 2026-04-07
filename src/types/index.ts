@@ -103,6 +103,8 @@ export interface ReferralLinkSummary {
   useCount: number;
   expiresAtLabel: string;
   isActive: boolean;
+  inviteUrl?: string;
+  emailInviteHref?: string;
 }
 
 export interface AppSession {

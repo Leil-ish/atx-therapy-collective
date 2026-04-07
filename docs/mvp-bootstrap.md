@@ -75,4 +75,10 @@ Once you are the first active admin/trusted referrer:
 
 - The app keeps the 2-step entry path: apply first, sign in after approval.
 - The script uses `SUPABASE_SERVICE_ROLE_KEY`, so run it only from your local trusted environment.
-- The script does not create passwords; auth stays magic-link based.
+- You can also set or reset an initial beta password for an existing auth user:
+
+```bash
+npm run bootstrap:mvp -- password --email you@example.com --password 'TempPassword123!'
+```
+
+- Members can later update their own password in [`/member/profile`](/Users/leilaanderson/Documents/atx-therapy-collective/app/(member)/member/profile/page.tsx).

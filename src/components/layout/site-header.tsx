@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 
 const publicNav = [
   { href: "/directory", label: "Directory" },
+  { href: "/join/apply", label: "Join" },
   { href: "/groups", label: "Groups" },
   { href: "/about", label: "How it works" }
 ] as const;

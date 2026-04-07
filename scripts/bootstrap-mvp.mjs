@@ -216,16 +216,51 @@ async function createInvite(admin, options) {
   console.log(`Expires: ${new Date(data.expires_at).toLocaleString("en-US")}`);
 }
 
+async function setUserPassword(admin, options) {
+  const email = options.email;
+  const password = options.password;
+
+  if (!email) {
+    throw new Error("Missing required flag: --email");
+  }
+
+  if (!password) {
+    throw new Error("Missing required flag: --password");
+  }
+
+  if (String(password).length < 10) {
+    throw new Error("Password must be at least 10 characters.");
+  }
+
+  const user = await findUserByEmail(admin, email);
+
+  if (!user) {
+    throw new Error(`No auth user exists for ${email}.`);
+  }
+
+  const { error } = await admin.auth.admin.updateUserById(user.id, {
+    password
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  console.log(`Password updated for ${email}`);
+  console.log(`User ID: ${user.id}`);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = args._;
 
-  if (!command || !["admin", "invite"].includes(command)) {
+  if (!command || !["admin", "invite", "password"].includes(command)) {
     console.log("Usage:");
     console.log("  npm run bootstrap:mvp -- admin --email you@example.com [--name \"Your Name\"]");
     console.log(
       "  npm run bootstrap:mvp -- invite --sponsor-email you@example.com [--invitee-email friend@example.com] [--max-uses 1] [--expires-days 30] [--code ATX-CUSTOM]"
     );
+    console.log("  npm run bootstrap:mvp -- password --email you@example.com --password 'TempPassword123!'");
     process.exit(1);
   }
 
@@ -249,6 +284,14 @@ async function main() {
     await ensureAdminProfile(admin, {
       email,
       name: args.name
+    });
+    return;
+  }
+
+  if (command === "password") {
+    await setUserPassword(admin, {
+      email: args.email,
+      password: args.password
     });
     return;
   }

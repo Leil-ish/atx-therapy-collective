@@ -8,7 +8,7 @@ export default async function MemberFeedPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-[28px] border bg-white/90 p-6 text-sm leading-7 text-muted-foreground shadow-soft">
-        Prioritize clinicians who are trusted and actually available. Later, this feed can support decline and closed states more explicitly without changing the overall workflow.
+        This feed is meant to feel more useful than a broad listserv: quick to scan, centered on fit, and clear about who is ready to step into a referral, consultation ask, or hiring need.
       </div>
       {feedItems.length > 0 ? (
         feedItems.map((item) => <FeedCard item={item} key={item.id} />)

@@ -3,12 +3,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { FeedItem } from "@/types";
 
 export function FeedCard({ item }: { item: FeedItem }) {
+  const statusLabel =
+    item.status === "matched"
+      ? "Matched"
+      : item.status === "declined"
+        ? "Declined"
+        : item.status === "closed"
+          ? "Closed"
+          : "Open";
+
   return (
     <Card className="bg-white/90">
       <CardHeader className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <Badge>{item.kindLabel}</Badge>
-          <Badge variant="outline">{item.status}</Badge>
+          <Badge variant="outline">{statusLabel}</Badge>
           <span className="text-sm text-muted-foreground">{item.createdAtLabel}</span>
         </div>
         <CardTitle className="text-2xl">{item.title}</CardTitle>

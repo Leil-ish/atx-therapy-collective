@@ -53,6 +53,35 @@ export default async function MemberDashboardPage() {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
+        <Card className="bg-white/90">
+          <CardHeader>
+            <CardTitle>Beta launch focus</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
+            <p>For the first beta, the goal is simple: make it fast to move trusted referrals without falling back to broad listservs or Slack channels.</p>
+            <p>The highest-value early partners are agencies and group practices that already have steady referral flow but weak trusted-match systems.</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/90">
+          <CardHeader>
+            <CardTitle>Next trust actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
+            <p>Once your profile is in good shape, the fastest way to strengthen the network is to invite 1-3 trusted clinicians and add endorsements for people you already refer to confidently.</p>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button asChild variant="outline">
+                <Link href="/member/endorsements">Add endorsements</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/member/referrals">Invite clinicians</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-2">
         {feedItems[0] ? (
           <FeedCard item={feedItems[0]} />
         ) : (

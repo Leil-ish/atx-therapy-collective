@@ -46,6 +46,9 @@ export default async function MemberReferralsPage({
           <p>
             Referral links are the only therapist onboarding path in MVP. Each link acts as the sponsorship path and should only be issued by trusted members.
           </p>
+          <p>
+            Use the direct invite link when you want the simplest experience. If you reserve the invite for an email, you can also launch a prefilled email draft from the card below.
+          </p>
           {statusCopy ? <div className="rounded-[24px] border bg-background p-4">{statusCopy}</div> : null}
           {session?.canIssueReferrals ? (
             <form action={createReferralLink} className="space-y-4">

@@ -27,7 +27,7 @@ function buildReferralCode() {
 
 export async function createMemberPost(formData: FormData) {
   const session = await requireMember();
-  const supabase = await createSupabaseServerClient();
+  const admin = createSupabaseAdminClient();
 
   const type = String(formData.get("type") ?? "referral_request").trim() as PostType;
   const title = String(formData.get("title") ?? "").trim();
@@ -39,7 +39,7 @@ export async function createMemberPost(formData: FormData) {
     redirect("/member/posts/new?error=missing-fields");
   }
 
-  const { data: post, error: postError } = await supabase
+  const { data: post, error: postError } = await admin
     .from("posts")
     .insert({
       author_profile_id: session.userId,
@@ -58,29 +58,44 @@ export async function createMemberPost(formData: FormData) {
   }
 
   if (type === "referral_request") {
-    await supabase.from("referral_requests").insert({
+    const { error: referralError } = await admin.from("referral_requests").insert({
       post_id: post.id,
       insurance_notes: insuranceNotes || null,
       urgency: styleNotes || null,
       status: "open"
     });
+
+    if (referralError) {
+      await admin.from("posts").delete().eq("id", post.id);
+      redirect("/member/posts/new?error=save-failed");
+    }
   }
 
   if (type === "consultation_request") {
-    await supabase.from("consultation_requests").insert({
+    const { error: consultationError } = await admin.from("consultation_requests").insert({
       post_id: post.id,
       topic: styleNotes || null,
       compensation_notes: insuranceNotes || null
     });
+
+    if (consultationError) {
+      await admin.from("posts").delete().eq("id", post.id);
+      redirect("/member/posts/new?error=save-failed");
+    }
   }
 
   if (type === "job") {
-    await supabase.from("jobs").insert({
+    const { error: jobError } = await admin.from("jobs").insert({
       post_id: post.id,
       organization_name: title,
       compensation_summary: insuranceNotes || null,
       location_summary: styleNotes || null
     });
+
+    if (jobError) {
+      await admin.from("posts").delete().eq("id", post.id);
+      redirect("/member/posts/new?error=save-failed");
+    }
   }
 
   revalidatePath("/member");
