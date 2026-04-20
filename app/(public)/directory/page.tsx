@@ -2,6 +2,7 @@ import { PageShell } from "@/components/layout/page-shell";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { EmptyState } from "@/components/state/empty-state";
 import { TherapistCard } from "@/components/domain/therapist-card";
+import { getSession } from "@/lib/auth/session";
 import { getPublicTherapists } from "@/lib/data/live-data";
 
 function matchesSearch(haystack: string[], query: string) {
@@ -25,7 +26,8 @@ export default async function DirectoryPage({
   }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
-  const allTherapists = await getPublicTherapists();
+  const session = await getSession();
+  const allTherapists = await getPublicTherapists(session?.userId);
   const query = params?.q?.trim() ?? "";
   const availability = params?.availability?.trim() ?? "";
   const payment = params?.payment?.trim() ?? "";
@@ -101,7 +103,7 @@ export default async function DirectoryPage({
         {therapists.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {therapists.map((therapist) => (
-              <TherapistCard key={therapist.slug} therapist={therapist} />
+              <TherapistCard key={therapist.slug} therapist={therapist} currentProfileId={session?.userId} />
             ))}
           </div>
         ) : (

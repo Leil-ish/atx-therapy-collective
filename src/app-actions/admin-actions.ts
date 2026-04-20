@@ -28,6 +28,7 @@ export async function reviewJoinRequest(formData: FormData) {
   const requestId = String(formData.get("requestId") ?? "").trim();
   const decision = String(formData.get("decision") ?? "").trim();
   const grantReferrals = formData.get("grantReferrals") === "on";
+  const grantPremium = formData.get("grantPremium") === "on";
   const rejectionReason = String(formData.get("rejectionReason") ?? "").trim();
 
   if (!requestId || !["approve", "reject"].includes(decision)) {
@@ -72,7 +73,8 @@ export async function reviewJoinRequest(formData: FormData) {
         approved_at: nextStatus === "active" ? reviewedAt : null,
         approved_by: nextStatus === "active" ? session.userId : null,
         rejected_at: nextStatus === "rejected" ? reviewedAt : null,
-        can_issue_referrals: nextStatus === "active" ? grantReferrals : false
+        can_issue_referrals: nextStatus === "active" ? grantReferrals : false,
+        membership_tier: nextStatus === "active" ? (grantPremium ? "premium" : "free") : "free"
       })
       .eq("id", authUserId);
   }

@@ -5,6 +5,7 @@ export type PostType = "referral_request" | "consultation_request" | "job";
 export type AvailabilityStatus = "accepting" | "waitlist" | "full";
 export type ReferralStatus = "open" | "matched" | "declined" | "closed";
 export type PaymentModel = "private_pay" | "insurance" | "both";
+export type MembershipTier = "free" | "premium";
 
 export interface TrustedByConnection {
   id: string;
@@ -18,6 +19,7 @@ export interface PublicTherapistSummary {
   slug: string;
   displayName: string;
   title: string;
+  headline?: string;
   bio: string;
   approachSummary: string;
   specialties: string[];
@@ -35,6 +37,11 @@ export interface PublicTherapistSummary {
   inPerson: boolean;
   telehealth: boolean;
   trustedBy: TrustedByConnection[];
+  featuredLinks: string[];
+  offerings: string[];
+  curatedListTitles: string[];
+  isFollowed?: boolean;
+  membershipTier: MembershipTier;
   sponsorName?: string;
 }
 
@@ -59,6 +66,7 @@ export interface FeedItem {
   ctaLabel: string;
   status: ReferralStatus | "open";
   availabilitySignal?: string;
+  isFollowedAuthor?: boolean;
 }
 
 export interface EndorsementSummary {
@@ -111,7 +119,37 @@ export interface AppSession {
   userId: string;
   role: UserRole;
   membershipState: MembershipState;
+  membershipTier: MembershipTier;
   fullName: string;
   email: string;
   canIssueReferrals?: boolean;
+}
+
+export interface FollowedClinicianSummary {
+  profileId: string;
+  slug: string;
+  displayName: string;
+  title: string;
+  headline?: string;
+  availabilityStatus: AvailabilityStatus;
+  followedAtLabel: string;
+}
+
+export interface CuratedListSummary {
+  id: string;
+  title: string;
+  description: string;
+  ownerProfileId: string;
+  ownerName: string;
+  ownerSlug?: string;
+  isPublic: boolean;
+  createdAtLabel: string;
+  items: Array<{
+    therapistProfileId: string;
+    profileId: string;
+    slug: string;
+    displayName: string;
+    title: string;
+    note?: string;
+  }>;
 }

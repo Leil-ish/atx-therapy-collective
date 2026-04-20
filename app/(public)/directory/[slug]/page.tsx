@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 
+import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
+import { getSession } from "@/lib/auth/session";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/components/layout/page-shell";
 import {
@@ -15,7 +18,8 @@ export default async function TherapistProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const therapist = await getPublicTherapistBySlug(slug);
+  const session = await getSession();
+  const therapist = await getPublicTherapistBySlug(slug, session?.userId);
 
   if (!therapist) {
     notFound();
@@ -29,13 +33,36 @@ export default async function TherapistProfilePage({
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">{therapist.membershipLabel}</Badge>
               <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
+              <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
             </div>
             <CardTitle className="text-4xl">{therapist.displayName}</CardTitle>
+            {therapist.headline ? <p className="text-base uppercase tracking-[0.18em] text-muted-foreground">{therapist.headline}</p> : null}
             <p className="text-lg text-muted-foreground">{therapist.title}</p>
           </CardHeader>
           <CardContent className="space-y-6">
+            {session?.userId && session.userId !== therapist.profileId ? (
+              <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
+                <input name="followedProfileId" type="hidden" value={therapist.profileId} />
+                <input name="returnTo" type="hidden" value={`/directory/${therapist.slug}`} />
+                <Button type="submit" variant={therapist.isFollowed ? "outline" : "default"}>
+                  {therapist.isFollowed ? "Following" : "Follow this clinician"}
+                </Button>
+              </form>
+            ) : null}
             <p className="leading-7 text-muted-foreground">{therapist.bio}</p>
             <p className="leading-7 text-muted-foreground">{therapist.approachSummary}</p>
+            {therapist.offerings.length > 0 ? (
+              <div className="space-y-2">
+                <p className="font-medium text-foreground">Offerings</p>
+                <div className="flex flex-wrap gap-2">
+                  {therapist.offerings.map((offering) => (
+                    <Badge key={offering} variant="muted">
+                      {offering}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               {therapist.specialties.map((specialty) => (
                 <Badge key={specialty}>{specialty}</Badge>
@@ -74,12 +101,24 @@ export default async function TherapistProfilePage({
                 <p>{therapist.neighborhoods.length > 0 ? therapist.neighborhoods.join(", ") : "Austin"}</p>
               </div>
             </div>
+            {therapist.featuredLinks.length > 0 ? (
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">Featured links</p>
+                <div className="flex flex-col gap-2">
+                  {therapist.featuredLinks.map((link) => (
+                    <a className="text-primary hover:text-primary/80" href={link} key={link} target="_blank">
+                      {link}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
         <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle>Trusted by</CardTitle>
+            <CardTitle>Trust context</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
             <p>{therapist.endorsementCount} active-member endorsements are visible on this public profile.</p>
@@ -91,7 +130,19 @@ export default async function TherapistProfilePage({
                 </Badge>
               ))}
             </div>
-            <p>For MVP, trusted-by endorsements matter more than long-form testimonials and only count when the endorser is an active therapist member.</p>
+            {therapist.curatedListTitles.length > 0 ? (
+              <div className="space-y-2">
+                <p className="font-medium text-foreground">Included in curated trust rosters</p>
+                <div className="flex flex-wrap gap-2">
+                  {therapist.curatedListTitles.map((title) => (
+                    <Badge key={title} variant="outline">
+                      {title}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <p>Endorsements and curated lists are meant to make trust legible, not to gamify popularity.</p>
           </CardContent>
         </Card>
       </section>

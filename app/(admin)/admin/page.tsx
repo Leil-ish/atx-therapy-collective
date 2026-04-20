@@ -7,7 +7,7 @@ export default function AdminDashboardPage() {
       <div className="mx-auto max-w-6xl space-y-6 px-6 py-10">
         <header className="rounded-[32px] border bg-white/85 p-6 shadow-soft">
           <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Admin and moderation</p>
-          <h1 className="mt-2 font-serif text-4xl">Collective operations</h1>
+          <h1 className="mt-2 font-serif text-4xl">Network operations</h1>
         </header>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -17,7 +17,7 @@ export default function AdminDashboardPage() {
             <CardTitle>Pending membership reviews</CardTitle>
           </CardHeader>
           <CardContent className="text-sm leading-7 text-muted-foreground">
-              Approve or reject referral-link-based join requests and validate therapist eligibility.
+              Referral-backed applications awaiting review.
           </CardContent>
         </Card>
 
@@ -27,7 +27,7 @@ export default function AdminDashboardPage() {
             <CardTitle>Reported content queue</CardTitle>
           </CardHeader>
           <CardContent className="text-sm leading-7 text-muted-foreground">
-              Review reports tied to posts, groups, trusted-by statements, or member behavior and capture resolution notes.
+              Reports tied to posts, groups, endorsements, or member behavior.
           </CardContent>
         </Card>
 
@@ -37,7 +37,7 @@ export default function AdminDashboardPage() {
               <CardTitle>Status controls</CardTitle>
             </CardHeader>
             <CardContent className="text-sm leading-7 text-muted-foreground">
-              Manage pending, active, rejected, and suspended members without exposing admin-only actions to therapists.
+              Pending, active, rejected, and suspended states.
             </CardContent>
           </Card>
         </div>

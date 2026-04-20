@@ -1,14 +1,25 @@
 import Link from "next/link";
 
+import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getAvailabilityLabel, getPaymentModelLabelForUi } from "@/lib/data/live-data";
 import type { PublicTherapistSummary } from "@/types";
 
-export function TherapistCard({ therapist }: { therapist: PublicTherapistSummary }) {
+export function TherapistCard({
+  therapist,
+  currentProfileId,
+  returnTo = "/directory"
+}: {
+  therapist: PublicTherapistSummary;
+  currentProfileId?: string;
+  returnTo?: string;
+}) {
   const careFormat = [therapist.inPerson ? "In person" : null, therapist.telehealth ? "Telehealth" : null]
     .filter(Boolean)
     .join(" + ");
+  const canFollow = currentProfileId && currentProfileId !== therapist.profileId;
 
   return (
     <Card className="h-full bg-white/90">
@@ -55,9 +66,20 @@ export function TherapistCard({ therapist }: { therapist: PublicTherapistSummary
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{therapist.endorsementCount} trusted-by endorsements</span>
-          <Link className="font-medium text-primary hover:text-primary/80" href={`/directory/${therapist.slug}`}>
-            View profile
-          </Link>
+          <div className="flex items-center gap-2">
+            {canFollow ? (
+              <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
+                <input name="followedProfileId" type="hidden" value={therapist.profileId} />
+                <input name="returnTo" type="hidden" value={returnTo} />
+                <Button size="sm" type="submit" variant={therapist.isFollowed ? "outline" : "ghost"}>
+                  {therapist.isFollowed ? "Following" : "Follow"}
+                </Button>
+              </form>
+            ) : null}
+            <Link className="font-medium text-primary hover:text-primary/80" href={`/directory/${therapist.slug}`}>
+              View profile
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>

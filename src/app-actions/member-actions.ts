@@ -21,6 +21,15 @@ function parseCommaSeparatedList(value: FormDataEntryValue | null, limit?: numbe
   return typeof limit === "number" ? items.slice(0, limit) : items;
 }
 
+function parseLineSeparatedList(value: FormDataEntryValue | null, limit?: number) {
+  const items = String(value ?? "")
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return typeof limit === "number" ? items.slice(0, limit) : items;
+}
+
 function buildReferralCode() {
   return `ATX-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
 }
@@ -213,11 +222,14 @@ export async function saveMemberProfile(formData: FormData) {
 
   const publicDisplayName = String(formData.get("publicDisplayName") ?? "").trim();
   const credentials = String(formData.get("credentials") ?? "").trim();
+  const headline = String(formData.get("headline") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
   const approachSummary = String(formData.get("approachSummary") ?? "").trim();
   const specialties = parseCommaSeparatedList(formData.get("specialties"), 5);
   const neighborhoods = parseCommaSeparatedList(formData.get("neighborhoods"), 3);
   const insuranceAccepted = parseCommaSeparatedList(formData.get("insuranceAccepted"), 5);
+  const featuredLinks = parseLineSeparatedList(formData.get("featuredLinks"), session.membershipTier === "premium" ? 5 : 2);
+  const offerings = parseLineSeparatedList(formData.get("offerings"), session.membershipTier === "premium" ? 8 : 0);
   const availabilityStatus = String(formData.get("availabilityStatus") ?? "waitlist").trim() as AvailabilityStatus;
   const paymentModel = String(formData.get("paymentModel") ?? "both").trim() as PaymentModel;
   const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
@@ -235,11 +247,14 @@ export async function saveMemberProfile(formData: FormData) {
     .update({
       public_display_name: publicDisplayName,
       credentials,
+      headline: headline || null,
       bio,
       approach_summary: approachSummary || null,
       specialties,
       neighborhoods,
       insurance_accepted: insuranceAccepted,
+      featured_links: featuredLinks,
+      offerings: session.membershipTier === "premium" ? offerings : [],
       availability_status: availabilityStatus,
       offers_in_person: offersInPerson,
       offers_telehealth: offersTelehealth,
@@ -312,4 +327,138 @@ export async function createEndorsement(formData: FormData) {
   revalidatePath("/member/endorsements");
   revalidatePath("/directory");
   redirect("/member/endorsements?saved=1");
+}
+
+export async function followClinician(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+  const followedProfileId = String(formData.get("followedProfileId") ?? "").trim();
+  const returnTo = String(formData.get("returnTo") ?? "/directory").trim();
+
+  if (!followedProfileId || followedProfileId === session.userId) {
+    redirect(returnTo as never);
+  }
+
+  const { error } = await admin.from("follows").upsert(
+    {
+      follower_profile_id: session.userId,
+      followed_profile_id: followedProfileId
+    },
+    {
+      onConflict: "follower_profile_id,followed_profile_id"
+    }
+  );
+
+  if (error) {
+    redirect(`${returnTo}?followError=1` as never);
+  }
+
+  revalidatePath("/directory");
+  revalidatePath("/member");
+  revalidatePath("/member/feed");
+  revalidatePath("/member/following");
+  redirect(returnTo as never);
+}
+
+export async function unfollowClinician(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+  const followedProfileId = String(formData.get("followedProfileId") ?? "").trim();
+  const returnTo = String(formData.get("returnTo") ?? "/member/following").trim();
+
+  if (!followedProfileId) {
+    redirect(returnTo as never);
+  }
+
+  await admin
+    .from("follows")
+    .delete()
+    .eq("follower_profile_id", session.userId)
+    .eq("followed_profile_id", followedProfileId);
+
+  revalidatePath("/directory");
+  revalidatePath("/member");
+  revalidatePath("/member/feed");
+  revalidatePath("/member/following");
+  redirect(returnTo as never);
+}
+
+export async function saveCuratedList(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  if (session.membershipTier !== "premium") {
+    redirect("/member/lists?error=premium-required" as never);
+  }
+
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const isPublic = formData.get("isPublic") === "on";
+  const noteA = String(formData.get("noteA") ?? "").trim();
+  const noteB = String(formData.get("noteB") ?? "").trim();
+  const noteC = String(formData.get("noteC") ?? "").trim();
+  const profileIds = [formData.get("profileA"), formData.get("profileB"), formData.get("profileC")]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+  if (!title || profileIds.length === 0) {
+    redirect("/member/lists?error=missing-fields" as never);
+  }
+
+  const { data: therapistProfiles, error: profileError } = await admin
+    .from("therapist_profiles")
+    .select("id, profile_id")
+    .in("profile_id", profileIds);
+
+  if (profileError || !therapistProfiles || therapistProfiles.length === 0) {
+    redirect("/member/lists?error=save-failed" as never);
+  }
+
+  const { data: curatedList, error: listError } = await admin
+    .from("curated_lists")
+    .insert({
+      owner_profile_id: session.userId,
+      title,
+      description: description || null,
+      is_public: isPublic
+    })
+    .select("id")
+    .single();
+
+  if (listError || !curatedList) {
+    redirect("/member/lists?error=save-failed" as never);
+  }
+
+  const notes = [noteA, noteB, noteC];
+  const therapistByProfileId = new Map(
+    therapistProfiles.map((profile) => [String(profile.profile_id), String(profile.id)])
+  );
+
+  const items = profileIds
+    .map((profileId, index) => {
+      const therapistProfileId = therapistByProfileId.get(profileId);
+      if (!therapistProfileId) {
+        return null;
+      }
+
+      return {
+        list_id: curatedList.id,
+        therapist_profile_id: therapistProfileId,
+        note: notes[index] || null,
+        sort_order: index
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+  const { error: itemError } = await admin.from("curated_list_items").insert(items);
+
+  if (itemError) {
+    await admin.from("curated_lists").delete().eq("id", curatedList.id);
+    redirect("/member/lists?error=save-failed" as never);
+  }
+
+  revalidatePath("/member");
+  revalidatePath("/member/lists");
+  revalidatePath("/directory");
+  redirect("/member/lists?saved=1" as never);
 }

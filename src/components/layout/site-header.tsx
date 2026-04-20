@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 const publicNav = [
   { href: "/directory", label: "Directory" },
   { href: "/join/apply", label: "Join" },
-  { href: "/groups", label: "Groups" },
   { href: "/about", label: "How it works" }
 ] as const;
 
@@ -15,15 +14,15 @@ export async function SiteHeader() {
   const session = await getSession();
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/40 bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-primary/10 bg-background/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link className="flex items-center gap-3" href="/">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-            ATX
+          <div className="flex h-11 w-11 items-center justify-center rounded-sm border border-primary/20 bg-primary text-sm font-semibold tracking-[0.2em] text-primary-foreground">
+            TTC
           </div>
           <div>
-            <p className="font-serif text-xl leading-none">ATX Therapy Collective</p>
-            <p className="text-xs text-muted-foreground">Austin therapists, connected with care</p>
+            <p className="font-serif text-xl leading-none">Trusted Therapist Collective</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Trust-led referrals in Austin</p>
           </div>
         </Link>
 
@@ -48,7 +47,7 @@ export async function SiteHeader() {
             </Button>
           )}
           <Button asChild variant="outline">
-            <Link href="/about">Request an introduction</Link>
+            <Link href="/join/apply">Join beta</Link>
           </Button>
         </div>
       </div>

@@ -14,8 +14,8 @@ const serif = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "ATX Therapy Collective",
-  description: "A trusted Austin therapist collective with a public directory and private member community."
+  title: "Trusted Therapist Collective",
+  description: "A trust-based referral and visibility network for Austin clinicians."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

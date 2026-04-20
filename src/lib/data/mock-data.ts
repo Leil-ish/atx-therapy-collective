@@ -38,6 +38,10 @@ export const therapists: PublicTherapistSummary[] = [
     availabilityUpdatedAtLabel: "Updated 2 days ago",
     inPerson: true,
     telehealth: true,
+    featuredLinks: [],
+    offerings: [],
+    curatedListTitles: [],
+    membershipTier: "free",
     trustedBy: [
       { id: "therapist-2", name: "Julian Park, LPC", slug: "julian-park-lpc" },
       { id: "therapist-3", name: "Nina Patel, LMFT", slug: "nina-patel-lmft" }
@@ -66,6 +70,10 @@ export const therapists: PublicTherapistSummary[] = [
     availabilityUpdatedAtLabel: "Updated this week",
     inPerson: false,
     telehealth: true,
+    featuredLinks: [],
+    offerings: [],
+    curatedListTitles: [],
+    membershipTier: "free",
     trustedBy: [{ id: "therapist-3", name: "Nina Patel, LMFT", slug: "nina-patel-lmft" }],
     sponsorName: "Sponsored by Maya Hernandez"
   },
@@ -91,6 +99,10 @@ export const therapists: PublicTherapistSummary[] = [
     availabilityUpdatedAtLabel: "Updated yesterday",
     inPerson: true,
     telehealth: true,
+    featuredLinks: [],
+    offerings: [],
+    curatedListTitles: [],
+    membershipTier: "free",
     trustedBy: [{ id: "therapist-1", name: "Maya Hernandez, LCSW", slug: "maya-hernandez-lcsw" }],
     sponsorName: "Sponsored by Maya Hernandez"
   }

@@ -8,14 +8,14 @@ export default async function MemberFeedPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-[28px] border bg-white/90 p-6 text-sm leading-7 text-muted-foreground shadow-soft">
-        This feed is meant to feel more useful than a broad listserv: quick to scan, centered on fit, and clear about who is ready to step into a referral, consultation ask, or hiring need.
+        A tighter feed shaped by follows, fit, and current availability.
       </div>
       {feedItems.length > 0 ? (
         feedItems.map((item) => <FeedCard item={item} key={item.id} />)
       ) : (
         <EmptyState
           title="No posts yet"
-          description="As soon as active members start using the collective for live referrals, those posts will appear here."
+          description="Posts appear here as members start using the network."
         />
       )}
     </div>

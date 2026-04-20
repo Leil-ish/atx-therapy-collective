@@ -3,21 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --background: 42 29% 96%;
-  --foreground: 155 18% 18%;
+  --background: 42 24% 95%;
+  --foreground: 150 20% 12%;
   --card: 0 0% 100%;
-  --card-foreground: 155 18% 18%;
-  --primary: 160 20% 28%;
+  --card-foreground: 150 20% 12%;
+  --primary: 153 26% 18%;
   --primary-foreground: 42 29% 97%;
-  --secondary: 36 21% 88%;
-  --secondary-foreground: 155 18% 22%;
-  --muted: 40 16% 92%;
-  --muted-foreground: 150 10% 38%;
-  --accent: 152 24% 82%;
-  --accent-foreground: 155 18% 20%;
-  --border: 35 16% 83%;
-  --input: 35 16% 83%;
-  --ring: 160 20% 28%;
+  --secondary: 34 24% 89%;
+  --secondary-foreground: 150 20% 18%;
+  --muted: 40 17% 91%;
+  --muted-foreground: 150 9% 34%;
+  --accent: 46 31% 85%;
+  --accent-foreground: 150 20% 16%;
+  --border: 34 14% 78%;
+  --input: 34 14% 78%;
+  --ring: 153 26% 18%;
   --font-sans: "Instrument Sans";
   --font-serif: "Cormorant Garamond";
 }
@@ -33,10 +33,15 @@ html {
 body {
   @apply bg-background text-foreground antialiased;
   background-image:
-    radial-gradient(circle at top left, rgba(193, 214, 202, 0.55), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(247, 243, 236, 0.95));
+    radial-gradient(circle at top left, rgba(177, 194, 171, 0.38), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(201, 187, 159, 0.28), transparent 22%),
+    linear-gradient(180deg, rgba(255, 253, 249, 0.86), rgba(245, 240, 232, 0.98));
 }
 
 a {
   @apply transition-colors;
+}
+
+::selection {
+  background: rgba(44, 66, 55, 0.18);
 }

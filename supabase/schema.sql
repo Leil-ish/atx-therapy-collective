@@ -9,6 +9,7 @@ create type public.referral_status as enum ('open', 'matched', 'declined', 'clos
 create type public.moderation_target_type as enum ('post', 'endorsement', 'group', 'profile');
 create type public.moderation_status as enum ('open', 'reviewing', 'resolved', 'dismissed');
 create type public.payment_model as enum ('private_pay', 'insurance', 'both');
+create type public.membership_tier as enum ('free', 'premium');
 
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -23,6 +24,7 @@ create table public.profiles (
   market_slug text not null default 'austin-tx',
   invite_code_used text,
   can_issue_referrals boolean not null default false,
+  membership_tier public.membership_tier not null default 'free',
   trusted_referrer_at timestamptz,
   approved_at timestamptz,
   approved_by uuid references public.profiles(id),
@@ -38,6 +40,7 @@ create table public.therapist_profiles (
   public_display_name text not null,
   credentials text,
   title text,
+  headline text,
   bio text,
   specialties text[] not null default '{}',
   insurance_accepted text[] not null default '{}',
@@ -47,6 +50,8 @@ create table public.therapist_profiles (
   populations text[] not null default '{}',
   neighborhoods text[] not null default '{}',
   approach_summary text,
+  featured_links text[] not null default '{}',
+  offerings text[] not null default '{}',
   website_url text,
   booking_url text,
   public_email text,
@@ -180,6 +185,35 @@ create table public.endorsements (
   created_at timestamptz not null default now(),
   unique (endorsed_profile_id, endorser_profile_id),
   constraint no_self_endorsement check (endorsed_profile_id <> endorser_profile_id)
+);
+
+create table public.follows (
+  id uuid primary key default gen_random_uuid(),
+  follower_profile_id uuid not null references public.profiles(id) on delete cascade,
+  followed_profile_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (follower_profile_id, followed_profile_id),
+  constraint no_self_follow check (follower_profile_id <> followed_profile_id)
+);
+
+create table public.curated_lists (
+  id uuid primary key default gen_random_uuid(),
+  owner_profile_id uuid not null references public.profiles(id) on delete cascade,
+  title text not null,
+  description text,
+  is_public boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.curated_list_items (
+  id uuid primary key default gen_random_uuid(),
+  list_id uuid not null references public.curated_lists(id) on delete cascade,
+  therapist_profile_id uuid not null references public.therapist_profiles(id) on delete cascade,
+  note text,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (list_id, therapist_profile_id)
 );
 
 create table public.moderation_reports (
@@ -364,6 +398,11 @@ before update on public.posts
 for each row
 execute function public.set_updated_at();
 
+create trigger set_curated_lists_updated_at
+before update on public.curated_lists
+for each row
+execute function public.set_updated_at();
+
 create trigger protect_profile_system_fields_before_update
 before update on public.profiles
 for each row
@@ -390,6 +429,7 @@ select
   tp.public_display_name,
   tp.credentials,
   tp.title,
+  tp.headline,
   tp.bio,
   tp.specialties,
   tp.insurance_accepted,
@@ -399,6 +439,8 @@ select
   tp.populations,
   tp.neighborhoods,
   tp.approach_summary,
+  tp.featured_links,
+  tp.offerings,
   tp.website_url,
   tp.booking_url,
   tp.public_email,

@@ -41,8 +41,8 @@ export default async function JoinApplyPage({
       <section className="mx-auto max-w-3xl space-y-8 px-6 py-16">
         <SectionHeading
           eyebrow="Join"
-          title="Apply with a therapist referral link"
-          description="Membership is referral-link based. Keep first-pass onboarding minimal now, then complete the rest of the profile after sign-in."
+          title="Apply through a trusted referral path"
+          description="Access is sponsor-backed. The rest of the profile comes after sign-in."
         />
 
         <Card className="bg-white/90">
@@ -52,7 +52,7 @@ export default async function JoinApplyPage({
           <CardContent className="space-y-6">
             {params?.submitted ? (
               <div className="rounded-[24px] border bg-background p-4 text-sm leading-7 text-muted-foreground">
-                Application submitted. Once an admin approves your referral-backed request, you can sign in with a magic link and complete your member profile.
+                Application submitted. After approval, sign in and finish the profile.
               </div>
             ) : null}
             {message ? (
@@ -78,7 +78,7 @@ export default async function JoinApplyPage({
                 ) : (
                   <>
                     <p>This referral code could not be verified.</p>
-                    <p>You can still submit if you believe it is valid, but the request will be checked against the live invitation record.</p>
+                    <p>The request will still be checked against the live invitation record.</p>
                   </>
                 )}
               </div>

@@ -5,13 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/session";
-import { getMemberFeedItems } from "@/lib/data/live-data";
+import { getCuratedListsForMember, getFollowedClinicians, getMemberFeedItems } from "@/lib/data/live-data";
 import { memberGroups } from "@/lib/data/mock-data";
 import Link from "next/link";
 
 export default async function MemberDashboardPage() {
   const session = await getSession();
-  const feedItems = await getMemberFeedItems();
+  const [feedItems, followedClinicians, curatedLists] = await Promise.all([
+    getMemberFeedItems(session?.userId),
+    session ? getFollowedClinicians(session.userId) : Promise.resolve([]),
+    session ? getCuratedListsForMember(session.userId) : Promise.resolve([])
+  ]);
 
   return (
     <div className="space-y-8">
@@ -22,14 +26,13 @@ export default async function MemberDashboardPage() {
             <CardTitle>Welcome back, {session?.fullName}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-            <p>This workspace is optimized for one behavior: before posting in a broad Facebook group, check the Collective first.</p>
-            <p>Use it to find trusted referrals faster, see who is actually available, and stay visible to the right Austin clinicians.</p>
+            <p>Referrals, follows, and profile visibility in one place.</p>
             <div className="flex flex-wrap gap-3 pt-2">
               <Button asChild>
                 <Link href="/member/posts/new">Post a referral request</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/member/profile">Update profile</Link>
+                <Link href={"/member/following" as never}>Following</Link>
               </Button>
             </div>
           </CardContent>
@@ -37,16 +40,16 @@ export default async function MemberDashboardPage() {
 
         <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle>Referral-link access</CardTitle>
+            <CardTitle>Tier and visibility</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
             <p>
-              {session?.canIssueReferrals
-                ? "You can create referral links for new therapists. Each link acts as the sponsorship path into the platform."
-                : "You do not have trusted-referrer privileges yet. Admins can enable referral-link access for established members."}
+              {session?.membershipTier === "premium"
+                ? "Curated lists and expanded profile tools are available."
+                : "Free tier active. Premium adds curated lists and expanded profile tools."}
             </p>
             <Button asChild variant="outline">
-              <Link href="/member/referrals">Manage referral links</Link>
+              <Link href="/member/profile">Update profile</Link>
             </Button>
           </CardContent>
         </Card>
@@ -55,26 +58,28 @@ export default async function MemberDashboardPage() {
       <section className="grid gap-6 lg:grid-cols-2">
         <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle>Beta launch focus</CardTitle>
+            <CardTitle>Follow signal</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-            <p>For the first beta, the goal is simple: make it fast to move trusted referrals without falling back to broad listservs or Slack channels.</p>
-            <p>The highest-value early partners are agencies and group practices that already have steady referral flow but weak trusted-match systems.</p>
+            <p>{followedClinicians.length > 0 ? `Following ${followedClinicians.length} clinicians.` : "No follows yet."}</p>
+            <Button asChild variant="outline">
+              <Link href={"/member/following" as never}>Manage follows</Link>
+            </Button>
           </CardContent>
         </Card>
 
         <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle>Next trust actions</CardTitle>
+            <CardTitle>Curation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-            <p>Once your profile is in good shape, the fastest way to strengthen the network is to invite 1-3 trusted clinicians and add endorsements for people you already refer to confidently.</p>
+            <p>{curatedLists.length > 0 ? `${curatedLists.length} curated list${curatedLists.length === 1 ? "" : "s"} published.` : "No curated lists yet."}</p>
             <div className="flex flex-wrap gap-3 pt-2">
               <Button asChild variant="outline">
-                <Link href="/member/endorsements">Add endorsements</Link>
+                <Link href={"/member/lists" as never}>Curated lists</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/member/referrals">Invite clinicians</Link>
+                <Link href="/member/endorsements">Endorse clinicians</Link>
               </Button>
             </div>
           </CardContent>
@@ -87,7 +92,7 @@ export default async function MemberDashboardPage() {
         ) : (
           <EmptyState
             title="No referral activity yet"
-            description="Your member feed will populate here once therapists begin posting live referral requests in the collective."
+            description="Posts will appear here."
           />
         )}
         <GroupCard group={memberGroups[2]} memberView />

@@ -57,7 +57,7 @@ export default async function MemberProfilePage({
     return (
       <EmptyState
         title="Profile unavailable"
-        description="We couldn't load your member profile yet. Try refreshing once your account setup has completed."
+        description="Profile data is not available yet."
       />
     );
   }
@@ -66,10 +66,10 @@ export default async function MemberProfilePage({
     <div className="grid gap-6 lg:grid-cols-2">
       <Card className="bg-white/90 lg:col-span-2">
         <CardHeader>
-          <CardTitle>Lean member profile</CardTitle>
+          <CardTitle>Professional profile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-          <p>Focus on the fields another therapist actually needs to make a confident referral: availability, care format, neighborhood, payment model, specialties, and a short sense of your work.</p>
+          <p>Availability, fit, neighborhoods, payment, and a clear sense of your work.</p>
           {statusCopy ? <div className="rounded-[24px] border bg-background p-4">{statusCopy}</div> : null}
         </CardContent>
       </Card>
@@ -91,6 +91,12 @@ export default async function MemberProfilePage({
               defaultValue={String(profile.credentials ?? "")}
               name="credentials"
               placeholder="Credentials"
+            />
+            <input
+              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
+              defaultValue={String(profile.headline ?? "")}
+              name="headline"
+              placeholder={session.membershipTier === "premium" ? "Short headline for your profile" : "Premium members can add a profile headline"}
             />
             <input
               className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
@@ -162,6 +168,18 @@ export default async function MemberProfilePage({
               name="approachSummary"
               placeholder="How would you describe your approach to therapy?"
             />
+            <textarea
+              className="min-h-24 w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
+              defaultValue={(Array.isArray(profile.featured_links) ? profile.featured_links : []).join("\n")}
+              name="featuredLinks"
+              placeholder="Featured links, one per line"
+            />
+            <textarea
+              className="min-h-24 w-full rounded-2xl border bg-background px-4 py-3 text-sm md:col-span-2"
+              defaultValue={(Array.isArray(profile.offerings) ? profile.offerings : []).join("\n")}
+              name="offerings"
+              placeholder={session.membershipTier === "premium" ? "Offerings, groups, workshops, or resources (one per line)" : "Premium members can add offerings and resources"}
+            />
             <label className="flex items-center gap-2 rounded-2xl border bg-background px-4 py-3 text-sm text-muted-foreground md:col-span-2">
               <input defaultChecked={Boolean(profile.is_public)} name="isPublic" type="checkbox" />
               Show this profile in the public directory
@@ -178,7 +196,7 @@ export default async function MemberProfilePage({
           <CardTitle>Password login</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-          <p>Set a password so you can sign in reliably without waiting on magic-link emails during beta.</p>
+          <p>Password sign-in avoids email delays.</p>
           {passwordStatusCopy ? <div className="rounded-[24px] border bg-background p-4">{passwordStatusCopy}</div> : null}
           <form action={updatePassword} className="space-y-4">
             <input

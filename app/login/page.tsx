@@ -40,7 +40,7 @@ export default async function LoginPage({
         <SectionHeading
           eyebrow="Member access"
           title="Therapist sign-in"
-          description="Sign in with a password for the most reliable experience, or fall back to a magic link if you still need it. Membership access is still gated by your app-level membership state after authentication."
+          description="Password sign-in is the default. Magic links remain available as fallback."
         />
 
         <Card className="bg-white/90">
@@ -50,7 +50,7 @@ export default async function LoginPage({
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
             {params?.sent ? (
               <div className="rounded-[24px] border bg-background p-4">
-                Magic link sent. Check your email and follow the link to finish sign-in.
+                Magic link sent. Check your inbox.
               </div>
             ) : null}
             {errorCopy ? (
@@ -78,7 +78,7 @@ export default async function LoginPage({
               <Button type="submit">Sign in with password</Button>
             </form>
             <p className="text-xs leading-6 text-muted-foreground">
-              If you have not set a password yet, sign in once with a magic link or ask an admin to assign you an initial password during beta.
+              No password yet? An admin can set one for the beta cohort.
             </p>
           </CardContent>
         </Card>
@@ -88,7 +88,7 @@ export default async function LoginPage({
             <CardTitle>Magic link fallback</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-            <p>Use this only when needed. Magic links are still subject to email delivery and provider rate limits.</p>
+            <p>Magic links are still subject to email delivery and provider limits.</p>
             <form action={signInWithMagicLink} className="space-y-4">
               <input
                 autoCapitalize="none"

@@ -90,7 +90,7 @@ async function findUserByEmail(admin, email) {
 }
 
 async function ensureAdminProfile(admin, options) {
-  const { email, name } = options;
+  const { email, name, tier } = options;
   const user = await findUserByEmail(admin, email);
 
   if (!user) {
@@ -125,6 +125,7 @@ async function ensureAdminProfile(admin, options) {
       country_code: "US",
       market_slug: "austin-tx",
       can_issue_referrals: true,
+      membership_tier: tier || "premium",
       approved_at: new Date().toISOString()
     },
     { onConflict: "id" }
@@ -250,17 +251,44 @@ async function setUserPassword(admin, options) {
   console.log(`User ID: ${user.id}`);
 }
 
+async function setUserTier(admin, options) {
+  const email = options.email;
+  const tier = options.tier;
+
+  if (!email) {
+    throw new Error("Missing required flag: --email");
+  }
+
+  if (!tier || !["free", "premium"].includes(String(tier))) {
+    throw new Error("Missing required flag: --tier free|premium");
+  }
+
+  const user = await findUserByEmail(admin, email);
+  if (!user) {
+    throw new Error(`No auth user exists for ${email}.`);
+  }
+
+  const { error } = await admin.from("profiles").update({ membership_tier: tier }).eq("id", user.id);
+  if (error) {
+    throw error;
+  }
+
+  console.log(`Membership tier set for ${email}: ${tier}`);
+  console.log(`User ID: ${user.id}`);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = args._;
 
-  if (!command || !["admin", "invite", "password"].includes(command)) {
+  if (!command || !["admin", "invite", "password", "tier"].includes(command)) {
     console.log("Usage:");
-    console.log("  npm run bootstrap:mvp -- admin --email you@example.com [--name \"Your Name\"]");
+    console.log("  npm run bootstrap:mvp -- admin --email you@example.com [--name \"Your Name\"] [--tier premium]");
     console.log(
       "  npm run bootstrap:mvp -- invite --sponsor-email you@example.com [--invitee-email friend@example.com] [--max-uses 1] [--expires-days 30] [--code ATX-CUSTOM]"
     );
     console.log("  npm run bootstrap:mvp -- password --email you@example.com --password 'TempPassword123!'");
+    console.log("  npm run bootstrap:mvp -- tier --email you@example.com --tier premium");
     process.exit(1);
   }
 
@@ -283,7 +311,8 @@ async function main() {
 
     await ensureAdminProfile(admin, {
       email,
-      name: args.name
+      name: args.name,
+      tier: args.tier
     });
     return;
   }
@@ -292,6 +321,14 @@ async function main() {
     await setUserPassword(admin, {
       email: args.email,
       password: args.password
+    });
+    return;
+  }
+
+  if (command === "tier") {
+    await setUserTier(admin, {
+      email: args.email,
+      tier: args.tier
     });
     return;
   }

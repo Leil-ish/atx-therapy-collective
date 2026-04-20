@@ -25,12 +25,12 @@ export default async function NewPostPage({
   return (
     <Card className="bg-white/90">
       <CardHeader>
-        <CardTitle>Send a referral through the collective</CardTitle>
+        <CardTitle>Send a referral through the network</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <p className="text-sm leading-7 text-muted-foreground">
-          Keep posts high-signal and quick to scan. The goal is to help another therapist make a confident decision without needing a giant intake form or a long back-and-forth thread.
-        </p>
+        <CardContent className="space-y-6">
+          <p className="text-sm leading-7 text-muted-foreground">
+            High-signal posts are easier to scan and easier to answer.
+          </p>
         {statusCopy ? <div className="rounded-[24px] border bg-background p-4 text-sm leading-7 text-muted-foreground">{statusCopy}</div> : null}
         <form action={createMemberPost} className="space-y-4">
           <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue="referral_request" name="type">
@@ -53,7 +53,7 @@ export default async function NewPostPage({
           <Button type="submit">Publish post</Button>
         </form>
         <div className="rounded-[24px] border bg-background p-4 text-sm leading-7 text-muted-foreground">
-          A strong referral request usually covers: who the referral is for, presenting concerns, preferred location or telehealth, payment/insurance considerations, and any especially important fit factors.
+          Strong referral posts usually cover age, concerns, care format, payment, and any fit factors that matter.
         </div>
       </CardContent>
     </Card>

@@ -2,9 +2,12 @@ import "server-only";
 
 import type {
   AvailabilityStatus,
+  CuratedListSummary,
   EndorsementSummary,
   FeedItem,
+  FollowedClinicianSummary,
   JoinRequestSummary,
+  MembershipTier,
   PaymentModel,
   PublicTherapistSummary,
   ReferralLinkSummary
@@ -171,19 +174,121 @@ async function getEndorserConnections(profileIds: string[]) {
   return grouped;
 }
 
+async function getFollowedProfileIds(viewerProfileId?: string) {
+  if (!viewerProfileId) {
+    return new Set<string>();
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("follows")
+    .select("followed_profile_id")
+    .eq("follower_profile_id", viewerProfileId);
+
+  if (error) {
+    return new Set<string>();
+  }
+
+  return new Set(
+    ((data ?? []) as Array<Record<string, unknown>>).map((item) => String(item.followed_profile_id))
+  );
+}
+
+async function getPublicCuratedListTitles(profileIds: string[]) {
+  if (profileIds.length === 0) {
+    return new Map<string, string[]>();
+  }
+
+  const admin = createSupabaseAdminClient();
+  const { data: rawItems, error } = await admin
+    .from("curated_list_items")
+    .select("therapist_profile_id, curated_lists!inner(title, is_public)")
+    .in("therapist_profile_id", profileIds);
+
+  if (error) {
+    return new Map<string, string[]>();
+  }
+
+  const grouped = new Map<string, string[]>();
+
+  for (const item of (rawItems ?? []) as Array<Record<string, unknown>>) {
+    const therapistProfileId = String(item.therapist_profile_id);
+    const list = item.curated_lists as Record<string, unknown> | null;
+
+    if (!list || list.is_public !== true) {
+      continue;
+    }
+
+    const title = String(list.title ?? "").trim();
+    if (!title) {
+      continue;
+    }
+
+    const current = grouped.get(therapistProfileId) ?? [];
+    if (!current.includes(title)) {
+      current.push(title);
+      grouped.set(therapistProfileId, current);
+    }
+  }
+
+  return grouped;
+}
+
+async function getSupplementalTherapistFields(
+  therapistProfileIds: string[],
+  profileIds: string[]
+) {
+  const admin = createSupabaseAdminClient();
+
+  const [{ data: rawTherapistProfiles, error: therapistError }, { data: rawProfiles, error: profileError }] = await Promise.all([
+    therapistProfileIds.length
+      ? admin
+          .from("therapist_profiles")
+          .select("id, headline, featured_links, offerings")
+          .in("id", therapistProfileIds)
+      : Promise.resolve({ data: [] as unknown[], error: null }),
+    profileIds.length
+      ? admin
+          .from("profiles")
+          .select("id, membership_tier")
+          .in("id", profileIds)
+      : Promise.resolve({ data: [] as unknown[], error: null })
+  ]);
+
+  const therapistFields = new Map<string, Record<string, unknown>>();
+  if (!therapistError) {
+    for (const row of (rawTherapistProfiles ?? []) as Array<Record<string, unknown>>) {
+      therapistFields.set(String(row.id), row);
+    }
+  }
+
+  const profileFields = new Map<string, Record<string, unknown>>();
+  if (!profileError) {
+    for (const row of (rawProfiles ?? []) as Array<Record<string, unknown>>) {
+      profileFields.set(String(row.id), row);
+    }
+  }
+
+  return { therapistFields, profileFields };
+}
+
 function mapTherapistSummary(
   row: Record<string, unknown>,
-  trustedBy: Map<string, { id: string; name: string; slug: string }[]>
+  trustedBy: Map<string, { id: string; name: string; slug: string }[]>,
+  followedProfileIds: Set<string>,
+  curatedListTitles: Map<string, string[]>
 ): PublicTherapistSummary {
   const profileId = String(row.profile_id);
   const paymentModel = (row.payment_model as PaymentModel | null) ?? "both";
+  const therapistProfileId = String(row.therapist_profile_id);
 
   return {
-    id: String(row.therapist_profile_id),
+    id: therapistProfileId,
     profileId,
     slug: String(row.slug),
     displayName: String(row.public_display_name ?? "Therapist"),
     title: buildTherapistTitle(row),
+    headline: typeof row.headline === "string" ? row.headline : undefined,
     bio: String(row.bio ?? "Profile in progress."),
     approachSummary: String(row.approach_summary ?? "Approach summary coming soon."),
     specialties: asArray(row.specialties),
@@ -201,11 +306,16 @@ function mapTherapistSummary(
     inPerson: Boolean(row.offers_in_person),
     telehealth: Boolean(row.offers_telehealth),
     trustedBy: trustedBy.get(profileId) ?? [],
+    featuredLinks: asArray(row.featured_links),
+    offerings: asArray(row.offerings),
+    curatedListTitles: curatedListTitles.get(therapistProfileId) ?? [],
+    isFollowed: followedProfileIds.has(profileId),
+    membershipTier: (row.membership_tier as MembershipTier | null) ?? "free",
     sponsorName: undefined
   };
 }
 
-export async function getPublicTherapists() {
+export async function getPublicTherapists(viewerProfileId?: string) {
   const admin = createSupabaseAdminClient();
   const { data: rawRows } = await admin
     .from("public_therapist_directory")
@@ -215,12 +325,31 @@ export async function getPublicTherapists() {
     .order("availability_updated_at", { ascending: false });
 
   const rows = (rawRows ?? []) as Array<Record<string, unknown>>;
-  const trustedBy = await getEndorserConnections(rows.map((row) => String(row.profile_id)));
+  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
+    getSupplementalTherapistFields(
+      rows.map((row) => String(row.therapist_profile_id)),
+      rows.map((row) => String(row.profile_id))
+    ),
+    getEndorserConnections(rows.map((row) => String(row.profile_id))),
+    getFollowedProfileIds(viewerProfileId),
+    getPublicCuratedListTitles(rows.map((row) => String(row.therapist_profile_id)))
+  ]);
 
-  return rows.map((row) => mapTherapistSummary(row, trustedBy));
+  return rows.map((row) =>
+    mapTherapistSummary(
+      {
+        ...row,
+        ...therapistFields.get(String(row.therapist_profile_id)),
+        ...profileFields.get(String(row.profile_id))
+      },
+      trustedBy,
+      followedProfileIds,
+      curatedListTitles
+    )
+  );
 }
 
-export async function getPublicTherapistBySlug(slug: string) {
+export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: string) {
   const admin = createSupabaseAdminClient();
   const { data: rawRow } = await admin
     .from("public_therapist_directory")
@@ -234,11 +363,25 @@ export async function getPublicTherapistBySlug(slug: string) {
     return null;
   }
 
-  const trustedBy = await getEndorserConnections([String(rawRow.profile_id)]);
-  return mapTherapistSummary(rawRow as Record<string, unknown>, trustedBy);
+  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
+    getSupplementalTherapistFields([String(rawRow.therapist_profile_id)], [String(rawRow.profile_id)]),
+    getEndorserConnections([String(rawRow.profile_id)]),
+    getFollowedProfileIds(viewerProfileId),
+    getPublicCuratedListTitles([String(rawRow.therapist_profile_id)])
+  ]);
+  return mapTherapistSummary(
+    {
+      ...(rawRow as Record<string, unknown>),
+      ...therapistFields.get(String(rawRow.therapist_profile_id)),
+      ...profileFields.get(String(rawRow.profile_id))
+    },
+    trustedBy,
+    followedProfileIds,
+    curatedListTitles
+  );
 }
 
-export async function getMemberFeedItems() {
+export async function getMemberFeedItems(profileId?: string) {
   const admin = createSupabaseAdminClient();
   const { data: rawPosts } = await admin
     .from("posts")
@@ -273,10 +416,14 @@ export async function getMemberFeedItems() {
       detail
     ])
   );
+  const followedProfileIds = await getFollowedProfileIds(profileId);
 
-  return posts.map((post) => {
+  return posts
+    .map((post) => {
     const type = String(post.kind) as FeedItem["type"];
     const referralDetail = referralDetails.get(String(post.id));
+    const authorProfileId = String(post.author_profile_id);
+    const isFollowedAuthor = followedProfileIds.has(authorProfileId);
 
     return {
       id: String(post.id),
@@ -301,9 +448,12 @@ export async function getMemberFeedItems() {
       availabilitySignal:
         typeof referralDetail?.insurance_notes === "string" && referralDetail.insurance_notes.trim().length > 0
           ? `Insurance notes: ${referralDetail.insurance_notes.trim()}`
-          : undefined
+          : undefined,
+      isFollowedAuthor
     } satisfies FeedItem;
-  });
+  })
+    .sort((a, b) => Number((b as FeedItem & { isFollowedAuthor?: boolean }).isFollowedAuthor) - Number((a as FeedItem & { isFollowedAuthor?: boolean }).isFollowedAuthor))
+    .map(({ isFollowedAuthor: _isFollowedAuthor, ...item }) => item);
 }
 
 export async function getReferralLinksForMember(userId: string, sponsorName: string) {
@@ -324,9 +474,9 @@ export async function getReferralLinksForMember(userId: string, sponsorName: str
     const inviteUrl = `${appUrl}/join/apply?code=${encodeURIComponent(code)}`;
     const emailInviteHref = invitedEmail
       ? `mailto:${encodeURIComponent(invitedEmail)}?subject=${encodeURIComponent(
-          "Invitation to join ATX Therapy Collective"
+          "Invitation to join Trusted Therapist Collective"
         )}&body=${encodeURIComponent(
-          `Hi,\n\nI'd love to invite you to join ATX Therapy Collective.\n\nUse this referral link to apply:\n${inviteUrl}\n\nIf the link does not prefill the code, use: ${code}\n\nBest,\n${sponsorName}`
+          `Hi,\n\nI'd love to invite you to join Trusted Therapist Collective.\n\nUse this referral link to apply:\n${inviteUrl}\n\nIf the link does not prefill the code, use: ${code}\n\nBest,\n${sponsorName}`
         )}`
       : undefined;
 
@@ -502,14 +652,162 @@ export async function getMemberProfileForUser(profileId: string) {
   const { data } = await admin
     .from("therapist_profiles")
     .select(
-      "profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, payment_model"
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, modalities, therapy_style_tags, populations, neighborhoods, approach_summary, website_url, booking_url, public_email, public_phone, offers_in_person, offers_telehealth, availability_status, accepting_referrals, is_public, payment_model"
     )
     .eq("profile_id", profileId)
     .maybeSingle();
 
-  return data as Record<string, unknown> | null;
+  if (!data) {
+    return null;
+  }
+
+  const { therapistFields } = await getSupplementalTherapistFields([String(data.id)], [profileId]);
+  return {
+    ...(data as Record<string, unknown>),
+    ...therapistFields.get(String(data.id))
+  } as Record<string, unknown>;
 }
 
 export function getPaymentModelLabelForUi(value: PaymentModel) {
   return getPaymentModelLabel(value);
+}
+
+export async function getFollowedClinicians(profileId: string) {
+  const admin = createSupabaseAdminClient();
+  const { data: rawFollows, error } = await admin
+    .from("follows")
+    .select("followed_profile_id, created_at")
+    .eq("follower_profile_id", profileId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return [] as FollowedClinicianSummary[];
+  }
+
+  const followedProfileIds = ((rawFollows ?? []) as Array<Record<string, unknown>>).map((follow) =>
+    String(follow.followed_profile_id)
+  );
+
+  if (followedProfileIds.length === 0) {
+    return [] as FollowedClinicianSummary[];
+  }
+
+  const therapists = await getPublicTherapists(profileId);
+  const byProfileId = new Map(therapists.map((therapist) => [therapist.profileId, therapist]));
+
+  return ((rawFollows ?? []) as Array<Record<string, unknown>>)
+    .map((follow) => {
+      const therapist = byProfileId.get(String(follow.followed_profile_id));
+      if (!therapist) {
+        return null;
+      }
+
+      return {
+        profileId: therapist.profileId,
+        slug: therapist.slug,
+        displayName: therapist.displayName,
+        title: therapist.title,
+        headline: therapist.headline,
+        availabilityStatus: therapist.availabilityStatus,
+        followedAtLabel: formatCreatedAtLabel(follow.created_at as string | null)
+      } satisfies FollowedClinicianSummary;
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+}
+
+export async function getCuratedListsForMember(ownerProfileId?: string) {
+  const admin = createSupabaseAdminClient();
+  let query = admin
+    .from("curated_lists")
+    .select("id, owner_profile_id, title, description, is_public, created_at")
+    .order("created_at", { ascending: false });
+
+  if (ownerProfileId) {
+    query = query.eq("owner_profile_id", ownerProfileId);
+  }
+
+  const { data: rawLists, error } = await query;
+
+  if (error) {
+    return [] as CuratedListSummary[];
+  }
+
+  const lists = (rawLists ?? []) as Array<Record<string, unknown>>;
+  if (lists.length === 0) {
+    return [] as CuratedListSummary[];
+  }
+
+  const ownerIds = [...new Set(lists.map((list) => String(list.owner_profile_id)))];
+  const listIds = lists.map((list) => String(list.id));
+
+  const [{ data: rawOwners }, { data: rawItems }] = await Promise.all([
+    ownerIds.length ? admin.from("profiles").select("id, full_name, slug").in("id", ownerIds) : Promise.resolve({ data: [] as unknown[] }),
+    listIds.length
+      ? admin
+          .from("curated_list_items")
+          .select("id, list_id, therapist_profile_id, note, sort_order")
+          .in("list_id", listIds)
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [] as unknown[] })
+  ]);
+
+  const owners = new Map(
+    ((rawOwners ?? []) as Array<Record<string, unknown>>).map((owner) => [
+      String(owner.id),
+      {
+        name: String(owner.full_name ?? "Clinician"),
+        slug: typeof owner.slug === "string" ? owner.slug : undefined
+      }
+    ])
+  );
+
+  const therapistProfileIds = [
+    ...new Set(((rawItems ?? []) as Array<Record<string, unknown>>).map((item) => String(item.therapist_profile_id)))
+  ];
+  const therapists = therapistProfileIds.length
+    ? await admin
+        .from("public_therapist_directory")
+        .select("therapist_profile_id, profile_id, slug, public_display_name, credentials, title")
+        .in("therapist_profile_id", therapistProfileIds)
+    : { data: [] as unknown[] };
+
+  const therapistMap = new Map(
+    ((therapists.data ?? []) as Array<Record<string, unknown>>).map((therapist) => [
+      String(therapist.therapist_profile_id),
+      {
+        therapistProfileId: String(therapist.therapist_profile_id),
+        profileId: String(therapist.profile_id),
+        slug: String(therapist.slug ?? ""),
+        displayName: String(therapist.public_display_name ?? "Therapist"),
+        title: buildTherapistTitle(therapist)
+      }
+    ])
+  );
+
+  const itemsByList = new Map<string, CuratedListSummary["items"]>();
+  for (const item of (rawItems ?? []) as Array<Record<string, unknown>>) {
+    const listId = String(item.list_id);
+    const therapist = therapistMap.get(String(item.therapist_profile_id));
+    if (!therapist) {
+      continue;
+    }
+    const current = itemsByList.get(listId) ?? [];
+    current.push({
+      ...therapist,
+      note: typeof item.note === "string" ? item.note : undefined
+    });
+    itemsByList.set(listId, current);
+  }
+
+  return lists.map((list) => ({
+    id: String(list.id),
+    title: String(list.title ?? "Untitled list"),
+    description: String(list.description ?? ""),
+    ownerProfileId: String(list.owner_profile_id),
+    ownerName: owners.get(String(list.owner_profile_id))?.name ?? "Clinician",
+    ownerSlug: owners.get(String(list.owner_profile_id))?.slug,
+    isPublic: Boolean(list.is_public),
+    createdAtLabel: formatCreatedAtLabel(list.created_at as string | null),
+    items: itemsByList.get(String(list.id)) ?? []
+  })) satisfies CuratedListSummary[];
 }

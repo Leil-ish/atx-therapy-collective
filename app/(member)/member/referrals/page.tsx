@@ -44,10 +44,10 @@ export default async function MemberReferralsPage({
         </CardHeader>
         <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
           <p>
-            Referral links are the only therapist onboarding path in MVP. Each link acts as the sponsorship path and should only be issued by trusted members.
+            Referral links are the beta entry path. Each one doubles as a sponsorship path.
           </p>
           <p>
-            Use the direct invite link when you want the simplest experience. If you reserve the invite for an email, you can also launch a prefilled email draft from the card below.
+            Reserved links also generate a prefilled email draft.
           </p>
           {statusCopy ? <div className="rounded-[24px] border bg-background p-4">{statusCopy}</div> : null}
           {session?.canIssueReferrals ? (
@@ -82,7 +82,7 @@ export default async function MemberReferralsPage({
       ) : (
         <EmptyState
           title="No referral links yet"
-          description="Once you issue referral links, they'll appear here with usage counts and expiration details."
+          description="Links appear here with usage counts and expiration details."
         />
       )}
     </div>

@@ -17,7 +17,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <header className="flex flex-col gap-5 rounded-[32px] border bg-white/85 p-6 shadow-soft md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Admin operations</p>
-            <h1 className="font-serif text-4xl">Collective administration</h1>
+            <h1 className="font-serif text-4xl">Trusted network admin</h1>
             <p className="mt-2 text-sm text-muted-foreground">Signed in as {session.fullName}</p>
           </div>
           <nav className="flex flex-wrap gap-3">

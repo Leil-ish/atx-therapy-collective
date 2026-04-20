@@ -35,7 +35,7 @@ function getStateCopy(state: MembershipState, rejectionReason?: string | null) {
 
   return {
     title: "Application under review",
-    body: "You are signed in, but your membership is still pending review. We’ll open the member workspace as soon as your referral-backed application is approved."
+    body: "You are signed in, but access is still pending review."
   };
 }
 
@@ -65,7 +65,7 @@ export default async function MemberAccessPage({
         <SectionHeading
           eyebrow="Member access"
           title={copy.title}
-          description="The collective is invite-only and therapist access stays gated by manual review, even after sign-in."
+          description="Access stays gated by referral and review."
         />
 
         <Card className="bg-white/90">
