@@ -315,14 +315,51 @@ function mapTherapistSummary(
   };
 }
 
-export async function getPublicTherapists(viewerProfileId?: string) {
+export async function getPublicTherapists(
+  viewerProfileId?: string,
+  limit: number = 50,
+  offset: number = 0,
+  query?: string,
+  availability?: string,
+  payment?: string,
+  format?: string
+): Promise<{ therapists: PublicTherapistSummary[]; totalCount: number }> {
   const admin = createSupabaseAdminClient();
-  const { data: rawRows } = await admin
+  let queryBuilder = admin
     .from("public_therapist_directory")
     .select(
-      "therapist_profile_id, profile_id, slug, city, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, public_endorsement_count, payment_model"
+      "therapist_profile_id, profile_id, slug, city, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, public_endorsement_count, payment_model",
+      { count: "exact" }
     )
-    .order("availability_updated_at", { ascending: false });
+
+  if (query) {
+    const search = `%${query.toLowerCase()}%`;
+    queryBuilder = queryBuilder.or(
+      `public_display_name.ilike.${search},bio.ilike.${search},approach_summary.ilike.${search},specialties.ilike.${search},populations.ilike.${search},neighborhoods.ilike.${search},therapy_style_tags.ilike.${search}`
+    );
+  }
+
+  if (availability) {
+    queryBuilder = queryBuilder.eq("availability_status", availability);
+  }
+
+  if (payment) {
+    queryBuilder = queryBuilder.eq("payment_model", payment);
+  }
+
+  if (format) {
+    if (format === "telehealth") {
+      queryBuilder = queryBuilder.eq("offers_telehealth", true);
+    } else if (format === "in_person") {
+      queryBuilder = queryBuilder.eq("offers_in_person", true);
+    } else if (format === "both") {
+      queryBuilder = queryBuilder.eq("offers_telehealth", true).eq("offers_in_person", true);
+    }
+  }
+
+  const { data: rawRows, count } = await queryBuilder
+    .order("availability_updated_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   const rows = (rawRows ?? []) as Array<Record<string, unknown>>;
   const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
@@ -335,18 +372,21 @@ export async function getPublicTherapists(viewerProfileId?: string) {
     getPublicCuratedListTitles(rows.map((row) => String(row.therapist_profile_id)))
   ]);
 
-  return rows.map((row) =>
-    mapTherapistSummary(
-      {
-        ...row,
-        ...therapistFields.get(String(row.therapist_profile_id)),
-        ...profileFields.get(String(row.profile_id))
-      },
-      trustedBy,
-      followedProfileIds,
-      curatedListTitles
-    )
-  );
+  return {
+    therapists: rows.map((row) =>
+      mapTherapistSummary(
+        {
+          ...row,
+          ...therapistFields.get(String(row.therapist_profile_id)),
+          ...profileFields.get(String(row.profile_id))
+        },
+        trustedBy,
+        followedProfileIds,
+        curatedListTitles
+      )
+    ),
+    totalCount: count ?? 0
+  };
 }
 
 export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: string) {

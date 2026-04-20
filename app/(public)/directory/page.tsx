@@ -1,4 +1,5 @@
 import { PageShell } from "@/components/layout/page-shell";
+import Link from "next/link";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { EmptyState } from "@/components/state/empty-state";
 import { TherapistCard } from "@/components/domain/therapist-card";
@@ -23,49 +24,38 @@ export default async function DirectoryPage({
     availability?: string;
     payment?: string;
     format?: string;
+    page?: string;
   }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
   const session = await getSession();
-  const allTherapists = await getPublicTherapists(session?.userId);
+
   const query = params?.q?.trim() ?? "";
   const availability = params?.availability?.trim() ?? "";
   const payment = params?.payment?.trim() ?? "";
   const format = params?.format?.trim() ?? "";
 
-  const therapists = allTherapists.filter((therapist) => {
-    const searchMatch = matchesSearch(
-      [
-        therapist.displayName,
-        therapist.title,
-        therapist.bio,
-        therapist.approachSummary,
-        therapist.city,
-        ...therapist.specialties,
-        ...therapist.populations,
-        ...therapist.neighborhoods,
-        ...therapist.therapyStyleTags
-      ],
-      query
-    );
-    const availabilityMatch = !availability || therapist.availabilityStatus === availability;
-    const paymentMatch = !payment || therapist.paymentModel === payment;
-    const formatMatch =
-      !format ||
-      (format === "telehealth" && therapist.telehealth) ||
-      (format === "in_person" && therapist.inPerson) ||
-      (format === "both" && therapist.telehealth && therapist.inPerson);
+  const THERAPISTS_PER_PAGE = 20;
+  const page = Number(params?.page ?? "1");
+  const offset = (page - 1) * THERAPISTS_PER_PAGE;
 
-    return searchMatch && availabilityMatch && paymentMatch && formatMatch;
-  });
+  const { therapists, totalCount } = await getPublicTherapists(
+    session?.userId,
+    THERAPISTS_PER_PAGE,
+    offset,
+    query,
+    availability,
+    payment,
+    format
+  );
 
   return (
     <PageShell>
       <section className="mx-auto max-w-6xl space-y-8 px-6 py-16">
         <SectionHeading
           eyebrow="Directory"
-          title="Austin therapists, presented with clarity"
-          description="This public directory stays intentionally focused: fit, trusted relationships, care format, payment model, and current availability matter more than giant taxonomy trees."
+          title="Connecting Austin Therapists: A Curated Directory"
+          description="Our directory prioritizes what truly matters for successful referrals: a strong therapeutic fit, clear care formats, transparent payment models, and current availability. We believe in quality connections over endless listings."
         />
         <form className="grid gap-4 rounded-[28px] border bg-white/90 p-5 md:grid-cols-[1.8fr_repeat(3,1fr)]">
           <input
@@ -111,6 +101,27 @@ export default async function DirectoryPage({
             title="No therapists match those filters"
             description="Try broadening the search or removing a filter. As more active members complete their public profile, directory coverage will deepen."
           />
+        )}
+
+        {totalCount > THERAPISTS_PER_PAGE && (
+          <div className="flex items-center justify-center gap-2">
+            <Link
+              className="rounded-full border px-4 py-2 text-sm font-medium"
+              aria-disabled={page === 1}
+              tabIndex={page === 1 ? -1 : undefined}
+              href={`/directory?q=${query}&availability=${availability}&payment=${payment}&format=${format}&page=${page - 1}`}
+            >
+              Previous
+            </Link>
+            <Link
+              className="rounded-full border px-4 py-2 text-sm font-medium"
+              aria-disabled={page * THERAPISTS_PER_PAGE >= totalCount}
+              tabIndex={page * THERAPISTS_PER_PAGE >= totalCount ? -1 : undefined}
+              href={`/directory?q=${query}&availability=${availability}&payment=${payment}&format=${format}&page=${page + 1}`}
+            >
+              Next
+            </Link>
+          </div>
         )}
       </section>
     </PageShell>

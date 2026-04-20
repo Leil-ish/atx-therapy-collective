@@ -36,10 +36,10 @@ export default async function HomePage({
           <div className="space-y-5">
             <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">Trusted therapist collective</p>
             <h1 className="max-w-4xl font-serif text-5xl leading-[0.95] text-foreground md:text-7xl">
-              Follow trusted clinicians. Make stronger referrals. Build signal through curation.
+              Connect with trusted colleagues. Make impactful referrals. Cultivate a network built on shared values.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
-              A trust-based referral and visibility network for Austin clinicians.
+              A dedicated community for Austin therapists, fostering meaningful referrals and professional connections.
             </p>
           </div>
 
@@ -118,7 +118,7 @@ export default async function HomePage({
       <section className="mx-auto max-w-6xl space-y-8 px-6 py-12">
         <SectionHeading
           eyebrow="Tiers"
-          title="Free to participate. Premium for added visibility."
+          title="Membership Tiers: Free Access & Enhanced Visibility."
           description=""
         />
         <div className="grid gap-6 md:grid-cols-2">
