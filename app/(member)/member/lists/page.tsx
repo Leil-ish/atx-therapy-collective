@@ -33,9 +33,9 @@ export default async function CuratedListsPage({
 }) {
   const session = await getSession();
   const params = searchParams ? await searchParams : undefined;
-  const [lists, therapists] = await Promise.all([
+  const [lists, { therapists }] = await Promise.all([
     session ? getCuratedListsForMember(session.userId) : Promise.resolve([]),
-    session ? getPublicTherapists(session.userId) : Promise.resolve([])
+    session ? getPublicTherapists(session.userId, 1000, 0, undefined, undefined, undefined, undefined) : Promise.resolve({ therapists: [], totalCount: 0 })
   ]);
   const statusCopy = getStatusCopy(params?.error, params?.saved);
 

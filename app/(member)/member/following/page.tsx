@@ -11,9 +11,9 @@ import type { FollowedClinicianSummary, PublicTherapistSummary } from "@/types";
 
 export default async function MemberFollowingPage() {
   const session = await getSession();
-  const [following, therapists] = await Promise.all([
+  const [following, { therapists }] = await Promise.all([
     session ? getFollowedClinicians(session.userId) : Promise.resolve([] as FollowedClinicianSummary[]),
-    session ? getPublicTherapists(session.userId) : Promise.resolve([] as PublicTherapistSummary[])
+    session ? getPublicTherapists(session.userId, 100, 0, undefined, undefined, undefined, undefined) : Promise.resolve({ therapists: [], totalCount: 0 })
   ]);
   const suggestions = therapists.filter((therapist) => therapist.profileId !== session?.userId).slice(0, 6);
 

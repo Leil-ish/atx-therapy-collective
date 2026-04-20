@@ -18,7 +18,7 @@ export async function SiteHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link className="flex items-center gap-3" href="/">
           <div className="flex h-11 w-11 items-center justify-center rounded-sm border border-primary/20 bg-primary text-sm font-semibold tracking-[0.2em] text-primary-foreground">
-            TTC
+            T
           </div>
           <div>
             <p className="font-serif text-xl leading-none">Trusted Therapist Collective</p>

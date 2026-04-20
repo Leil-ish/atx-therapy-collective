@@ -27,7 +27,7 @@ export default async function HomePage({
   }
 
   const session = await getSession();
-  const therapists = await getPublicTherapists(session?.userId);
+  const { therapists } = await getPublicTherapists(session?.userId, 3, 0, undefined, undefined, undefined, undefined);
 
   return (
     <PageShell>

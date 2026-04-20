@@ -51,7 +51,7 @@ export default async function MemberEndorsementsPage({
               <option value="" disabled>
                 Select a therapist
               </option>
-              {candidates.map((candidate) => (
+              {candidates.map((candidate: { profileId: string; label: string }) => (
                 <option key={candidate.profileId} value={candidate.profileId}>
                   {candidate.label}
                 </option>

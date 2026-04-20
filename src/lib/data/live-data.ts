@@ -582,7 +582,7 @@ export async function getEndorsementsForMember(profileId: string) {
 }
 
 export async function getEndorsementCandidates(currentProfileId: string) {
-  const therapists = await getPublicTherapists();
+  const { therapists } = await getPublicTherapists(undefined, 1000, 0);
   return therapists
     .filter((therapist) => therapist.profileId !== currentProfileId)
     .map((therapist) => ({
@@ -732,7 +732,7 @@ export async function getFollowedClinicians(profileId: string) {
     return [] as FollowedClinicianSummary[];
   }
 
-  const therapists = await getPublicTherapists(profileId);
+  const { therapists } = await getPublicTherapists(profileId, 1000, 0);
   const byProfileId = new Map(therapists.map((therapist) => [therapist.profileId, therapist]));
 
   return ((rawFollows ?? []) as Array<Record<string, unknown>>)
