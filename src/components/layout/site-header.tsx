@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 const publicNav = [
   { href: "/directory", label: "Directory" },
   { href: "/join/apply", label: "Join" },
-  { href: "/about", label: "How it works" }
+  { href: "/about", label: "Beta" }
 ] as const;
 
 export async function SiteHeader() {
@@ -22,7 +22,7 @@ export async function SiteHeader() {
           </div>
           <div>
             <p className="font-serif text-xl leading-none">Trusted Therapist Collective</p>
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Trust-led referrals in Austin</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Austin referrals</p>
           </div>
         </Link>
 
@@ -47,7 +47,7 @@ export async function SiteHeader() {
             </Button>
           )}
           <Button asChild variant="outline">
-            <Link href="/join/apply">Join beta</Link>
+            <Link href="/join/apply">Join</Link>
           </Button>
         </div>
       </div>

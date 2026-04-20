@@ -1,36 +1,28 @@
 import { PageShell } from "@/components/layout/page-shell";
 import Link from "next/link";
-import { SectionHeading } from "@/components/layout/section-heading";
 import { EmptyState } from "@/components/state/empty-state";
 import { TherapistCard } from "@/components/domain/therapist-card";
 import { getSession } from "@/lib/auth/session";
 import { getPublicTherapists } from "@/lib/data/live-data";
-
-function matchesSearch(haystack: string[], query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  return haystack.some((value) => value.toLowerCase().includes(normalizedQuery));
-}
+import { AUSTIN_METRO_AREAS, regionMatches } from "@/lib/referral-matching";
 
 export default async function DirectoryPage({
   searchParams
 }: {
-  searchParams?: Promise<{
-    q?: string;
-    availability?: string;
-    payment?: string;
-    format?: string;
-    page?: string;
+    searchParams?: Promise<{
+      q?: string;
+      region?: string;
+      availability?: string;
+      payment?: string;
+      format?: string;
+      page?: string;
   }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
   const session = await getSession();
 
   const query = params?.q?.trim() ?? "";
+  const region = params?.region?.trim() ?? "";
   const availability = params?.availability?.trim() ?? "";
   const payment = params?.payment?.trim() ?? "";
   const format = params?.format?.trim() ?? "";
@@ -39,31 +31,42 @@ export default async function DirectoryPage({
   const page = Number(params?.page ?? "1");
   const offset = (page - 1) * THERAPISTS_PER_PAGE;
 
-  const { therapists, totalCount } = await getPublicTherapists(
+  const { therapists: rawTherapists } = await getPublicTherapists(
     session?.userId,
-    THERAPISTS_PER_PAGE,
-    offset,
+    250,
+    0,
     query,
     availability,
     payment,
     format
   );
+  const therapists = rawTherapists.filter((therapist) => regionMatches(region, therapist.neighborhoods, therapist.city));
+  const totalCount = therapists.length;
+  const pagedTherapists = therapists.slice(offset, offset + THERAPISTS_PER_PAGE);
 
   return (
     <PageShell>
       <section className="mx-auto max-w-6xl space-y-8 px-6 py-16">
-        <SectionHeading
-          eyebrow="Directory"
-          title="Connecting Austin Therapists: A Curated Directory"
-          description="Our directory prioritizes what truly matters for successful referrals: a strong therapeutic fit, clear care formats, transparent payment models, and current availability. We believe in quality connections over endless listings."
-        />
-        <form className="grid gap-4 rounded-[28px] border bg-white/90 p-5 md:grid-cols-[1.8fr_repeat(3,1fr)]">
+        <div className="space-y-2">
+          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Directory</p>
+          <h1 className="font-serif text-5xl leading-tight text-foreground">Therapist Directory</h1>
+          <p className="text-base text-muted-foreground">Search by fit, availability, payment, and care format.</p>
+        </div>
+        <form className="grid gap-4 rounded-[28px] border bg-white/90 p-5 md:grid-cols-[1.6fr_repeat(4,1fr)]">
           <input
             className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
             defaultValue={query}
             name="q"
             placeholder="Search by name, specialty, neighborhood, or approach"
           />
+          <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue={region} name="region">
+            <option value="">All Austin metro areas</option>
+            {AUSTIN_METRO_AREAS.map((area) => (
+              <option key={area} value={area}>
+                {area}
+              </option>
+            ))}
+          </select>
           <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue={availability} name="availability">
             <option value="">Any availability</option>
             <option value="accepting">Accepting new clients</option>
@@ -85,14 +88,13 @@ export default async function DirectoryPage({
         </form>
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <p>
-            Showing {therapists.length} therapist{therapists.length === 1 ? "" : "s"}
+            Showing {pagedTherapists.length} therapist{pagedTherapists.length === 1 ? "" : "s"}
             {query ? ` for "${query}"` : ""}.
           </p>
-          <p>Use the filters to narrow for fit before sending a referral out.</p>
         </div>
-        {therapists.length > 0 ? (
+        {pagedTherapists.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {therapists.map((therapist) => (
+            {pagedTherapists.map((therapist) => (
               <TherapistCard key={therapist.slug} therapist={therapist} currentProfileId={session?.userId} />
             ))}
           </div>
@@ -106,18 +108,18 @@ export default async function DirectoryPage({
         {totalCount > THERAPISTS_PER_PAGE && (
           <div className="flex items-center justify-center gap-2">
             <Link
-              className="rounded-full border px-4 py-2 text-sm font-medium"
+              className="rounded-xl border px-4 py-2 text-sm font-medium"
               aria-disabled={page === 1}
               tabIndex={page === 1 ? -1 : undefined}
-              href={`/directory?q=${query}&availability=${availability}&payment=${payment}&format=${format}&page=${page - 1}`}
+              href={`/directory?q=${query}&region=${region}&availability=${availability}&payment=${payment}&format=${format}&page=${page - 1}`}
             >
               Previous
             </Link>
             <Link
-              className="rounded-full border px-4 py-2 text-sm font-medium"
+              className="rounded-xl border px-4 py-2 text-sm font-medium"
               aria-disabled={page * THERAPISTS_PER_PAGE >= totalCount}
               tabIndex={page * THERAPISTS_PER_PAGE >= totalCount ? -1 : undefined}
-              href={`/directory?q=${query}&availability=${availability}&payment=${payment}&format=${format}&page=${page + 1}`}
+              href={`/directory?q=${query}&region=${region}&availability=${availability}&payment=${payment}&format=${format}&page=${page + 1}`}
             >
               Next
             </Link>

@@ -40,7 +40,10 @@ export interface PublicTherapistSummary {
   featuredLinks: string[];
   offerings: string[];
   curatedListTitles: string[];
+  publicEmail?: string;
+  publicPhone?: string;
   isFollowed?: boolean;
+  trustedByViewer?: boolean;
   membershipTier: MembershipTier;
   sponsorName?: string;
 }

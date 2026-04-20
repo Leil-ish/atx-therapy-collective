@@ -112,6 +112,19 @@ export default async function MemberProfilePage({
             />
             <input
               className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
+              defaultValue={String(profile.public_email ?? "")}
+              name="publicEmail"
+              placeholder="Public email"
+              type="email"
+            />
+            <input
+              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
+              defaultValue={String(profile.public_phone ?? "")}
+              name="publicPhone"
+              placeholder="Public phone"
+            />
+            <input
+              className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
               defaultValue={(Array.isArray(profile.neighborhoods) ? profile.neighborhoods : []).join(", ")}
               name="neighborhoods"
               placeholder="Primary neighborhood or area"

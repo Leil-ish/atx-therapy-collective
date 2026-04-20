@@ -19,14 +19,10 @@ export default async function MemberFollowingPage() {
 
   return (
     <div className="space-y-8">
-      <Card className="bg-white/90">
-        <CardHeader>
-          <CardTitle>Following</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-          <p>Followed clinicians appear here.</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Following</p>
+        <h2 className="font-serif text-4xl">Trusted clinicians</h2>
+      </div>
 
       {following.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2">

@@ -31,7 +31,6 @@ export default async function TherapistProfilePage({
         <Card className="bg-white/90">
           <CardHeader className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{therapist.membershipLabel}</Badge>
               <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
               <Badge variant="outline">{therapist.membershipTier === "premium" ? "Premium" : "Free"}</Badge>
             </div>
@@ -41,16 +40,24 @@ export default async function TherapistProfilePage({
           </CardHeader>
           <CardContent className="space-y-6">
             {session?.userId && session.userId !== therapist.profileId ? (
-              <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
-                <input name="followedProfileId" type="hidden" value={therapist.profileId} />
-                <input name="returnTo" type="hidden" value={`/directory/${therapist.slug}`} />
-                <Button type="submit" variant={therapist.isFollowed ? "outline" : "default"}>
-                  {therapist.isFollowed ? "Following" : "Follow this clinician"}
-                </Button>
-              </form>
+              <div className="flex flex-wrap gap-3">
+                <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
+                  <input name="followedProfileId" type="hidden" value={therapist.profileId} />
+                  <input name="returnTo" type="hidden" value={`/directory/${therapist.slug}`} />
+                  <Button type="submit" variant={therapist.isFollowed ? "outline" : "default"}>
+                    {therapist.isFollowed ? "Following" : "Follow this clinician"}
+                  </Button>
+                </form>
+                {therapist.publicEmail ? (
+                  <Button asChild variant="outline">
+                    <a href={`mailto:${therapist.publicEmail}?subject=${encodeURIComponent(`Referral inquiry for ${therapist.displayName}`)}`}>
+                      Email clinician
+                    </a>
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             <p className="leading-7 text-muted-foreground">{therapist.bio}</p>
-            <p className="leading-7 text-muted-foreground">{therapist.approachSummary}</p>
             {therapist.offerings.length > 0 ? (
               <div className="space-y-2">
                 <p className="font-medium text-foreground">Offerings</p>
@@ -68,17 +75,10 @@ export default async function TherapistProfilePage({
                 <Badge key={specialty}>{specialty}</Badge>
               ))}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {therapist.therapyStyleTags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
             <div className="grid gap-4 text-sm text-muted-foreground md:grid-cols-2">
               <div>
-                <p className="font-medium text-foreground">Populations served</p>
-                <p>{therapist.populations.join(", ")}</p>
+                <p className="font-medium text-foreground">Fit</p>
+                <p>{therapist.approachSummary || therapist.populations.join(", ")}</p>
               </div>
               <div>
                 <p className="font-medium text-foreground">Insurance</p>
@@ -100,6 +100,18 @@ export default async function TherapistProfilePage({
                 <p className="font-medium text-foreground">Neighborhoods</p>
                 <p>{therapist.neighborhoods.length > 0 ? therapist.neighborhoods.join(", ") : "Austin"}</p>
               </div>
+              {therapist.publicEmail ? (
+                <div>
+                  <p className="font-medium text-foreground">Email</p>
+                  <p>{therapist.publicEmail}</p>
+                </div>
+              ) : null}
+              {therapist.publicPhone ? (
+                <div>
+                  <p className="font-medium text-foreground">Phone</p>
+                  <p>{therapist.publicPhone}</p>
+                </div>
+              ) : null}
             </div>
             {therapist.featuredLinks.length > 0 ? (
               <div className="space-y-2 text-sm text-muted-foreground">
@@ -121,8 +133,8 @@ export default async function TherapistProfilePage({
             <CardTitle>Trust context</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-            <p>{therapist.endorsementCount} active-member endorsements are visible on this public profile.</p>
-            <p>{therapist.sponsorName ?? "Referrals are trust-centered and sponsor-backed in this collective."}</p>
+            <p>{therapist.endorsementCount} public endorsements.</p>
+            {therapist.sponsorName ? <p>Joined through {therapist.sponsorName}.</p> : null}
             <div className="flex flex-wrap gap-2">
               {therapist.trustedBy.map((connection) => (
                 <Badge key={connection.id} variant="outline">
@@ -142,7 +154,6 @@ export default async function TherapistProfilePage({
                 </div>
               </div>
             ) : null}
-            <p>Endorsements and curated lists are meant to make trust legible, not to gamify popularity.</p>
           </CardContent>
         </Card>
       </section>

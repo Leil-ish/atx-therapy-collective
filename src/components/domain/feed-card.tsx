@@ -26,7 +26,7 @@ export function FeedCard({ item }: { item: FeedItem }) {
         <p className="text-sm leading-6 text-muted-foreground">{item.body}</p>
         {item.availabilitySignal ? <p className="text-sm leading-6 text-muted-foreground">{item.availabilitySignal}</p> : null}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Posted by {item.authorName}</span>
+          <span className="text-muted-foreground">{item.authorName}{item.isFollowedAuthor ? " · Following" : ""}</span>
           <span className="font-medium text-primary">{item.ctaLabel}</span>
         </div>
       </CardContent>

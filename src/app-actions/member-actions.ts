@@ -34,6 +34,43 @@ function buildReferralCode() {
   return `ATX-${crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
 }
 
+function buildStructuredReferralSummary(formData: FormData) {
+  const lines = [
+    buildStructuredLine("Region", formData.get("regionWanted"), formData.get("regionPreference")),
+    buildStructuredLine("Presenting issues", formData.get("presentingIssues"), formData.get("presentingIssuesPreference")),
+    buildStructuredLine("Client type / population", formData.get("populationsWanted"), formData.get("populationsPreference")),
+    buildStructuredLine("Modality", formData.get("modalitiesWanted"), formData.get("modalitiesPreference")),
+    buildStructuredLine("Insurance", formData.get("insuranceWanted"), formData.get("insurancePreference")),
+    buildStructuredLine("Payment model", formData.get("paymentWanted"), formData.get("paymentPreference")),
+    buildStructuredLine("Care format", formData.get("formatWanted"), formData.get("formatPreference")),
+    buildSimpleLine("Level of care", formData.get("levelOfCare")),
+    buildSimpleLine("Urgency", formData.get("urgencyLevel"))
+  ].filter(Boolean);
+
+  return lines.join("\n");
+}
+
+function buildStructuredLine(label: string, value: FormDataEntryValue | null, preference: FormDataEntryValue | null) {
+  const text = String(value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(", ");
+
+  if (!text) {
+    return null;
+  }
+
+  const pref = String(preference ?? "").trim();
+  const suffix = pref === "dealbreaker" ? " (dealbreaker)" : pref === "nice_to_have" ? " (nice-to-have)" : "";
+  return `${label}: ${text}${suffix}`;
+}
+
+function buildSimpleLine(label: string, value: FormDataEntryValue | null) {
+  const text = String(value ?? "").trim();
+  return text ? `${label}: ${text}` : null;
+}
+
 export async function createMemberPost(formData: FormData) {
   const session = await requireMember();
   const admin = createSupabaseAdminClient();
@@ -43,6 +80,8 @@ export async function createMemberPost(formData: FormData) {
   const body = String(formData.get("body") ?? "").trim();
   const insuranceNotes = String(formData.get("insurance") ?? "").trim();
   const styleNotes = String(formData.get("style") ?? "").trim();
+  const structuredSummary = buildStructuredReferralSummary(formData);
+  const postBody = structuredSummary ? `${structuredSummary}\n\nDetails:\n${body}` : body;
 
   if (!title || !body) {
     redirect("/member/posts/new?error=missing-fields");
@@ -54,7 +93,7 @@ export async function createMemberPost(formData: FormData) {
       author_profile_id: session.userId,
       kind: type,
       title,
-      body,
+      body: postBody,
       market_slug: "austin-tx",
       is_private: true,
       is_published: true
@@ -225,6 +264,8 @@ export async function saveMemberProfile(formData: FormData) {
   const headline = String(formData.get("headline") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
   const approachSummary = String(formData.get("approachSummary") ?? "").trim();
+  const publicEmail = normalizeEmail(String(formData.get("publicEmail") ?? ""));
+  const publicPhone = String(formData.get("publicPhone") ?? "").trim();
   const specialties = parseCommaSeparatedList(formData.get("specialties"), 5);
   const neighborhoods = parseCommaSeparatedList(formData.get("neighborhoods"), 3);
   const insuranceAccepted = parseCommaSeparatedList(formData.get("insuranceAccepted"), 5);
@@ -250,6 +291,8 @@ export async function saveMemberProfile(formData: FormData) {
       headline: headline || null,
       bio,
       approach_summary: approachSummary || null,
+      public_email: publicEmail || null,
+      public_phone: publicPhone || null,
       specialties,
       neighborhoods,
       insurance_accepted: insuranceAccepted,

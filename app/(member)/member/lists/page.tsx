@@ -41,15 +41,11 @@ export default async function CuratedListsPage({
 
   return (
     <div className="space-y-8">
-      <Card className="bg-white/90">
-        <CardHeader>
-          <CardTitle>Curated lists</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
-          <p>Curated lists are short trust rosters for clinicians you would confidently refer to.</p>
-          {statusCopy ? <div className="rounded-[24px] border bg-background p-4">{statusCopy}</div> : null}
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Curated lists</p>
+        <h2 className="font-serif text-4xl">Trust rosters</h2>
+        {statusCopy ? <div className="rounded-2xl border bg-white/90 p-4 text-sm text-muted-foreground">{statusCopy}</div> : null}
+      </div>
 
       <Card className="bg-white/90">
         <CardHeader>
@@ -92,7 +88,7 @@ export default async function CuratedListsPage({
           ) : (
             <EmptyState
               title="Premium beta feature"
-              description="Free members can join referrals and follows. Premium adds curated lists."
+              description="Free members can follow and refer. Premium adds curated lists."
             />
           )}
         </CardContent>

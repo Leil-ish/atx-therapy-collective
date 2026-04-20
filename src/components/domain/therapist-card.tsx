@@ -30,13 +30,15 @@ export function TherapistCard({
             <CardDescription>{therapist.title}</CardDescription>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <Badge variant="outline">{therapist.membershipLabel}</Badge>
             <Badge>{getAvailabilityLabel(therapist.availabilityStatus)}</Badge>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm leading-6 text-muted-foreground">{therapist.bio}</p>
+        <div className="flex flex-wrap gap-2">
+          {therapist.trustedByViewer ? <Badge variant="outline">Trusted by you</Badge> : null}
+          {therapist.isFollowed ? <Badge variant="outline">Following</Badge> : null}
+        </div>
         <div className="flex flex-wrap gap-2">
           {therapist.specialties.slice(0, 5).map((specialty) => (
             <Badge key={specialty} variant="muted">
@@ -44,28 +46,16 @@ export function TherapistCard({
             </Badge>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {therapist.therapyStyleTags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="outline">
-              {tag}
-            </Badge>
-          ))}
-        </div>
         <div className="space-y-2 text-sm text-muted-foreground">
-          <p>{therapist.approachSummary}</p>
-          <p>{getPaymentModelLabelForUi(therapist.paymentModel)}</p>
           {therapist.neighborhoods.length > 0 ? <p>{therapist.neighborhoods.join(", ")}</p> : <p>{therapist.city}</p>}
           <p>{careFormat || therapist.city}</p>
-          <p>{therapist.availabilityUpdatedAtLabel}</p>
-          <p>
-            Trusted by{" "}
-            {therapist.trustedBy.length > 0
-              ? therapist.trustedBy.map((connection) => connection.name).join(", ")
-              : "active members in the collective"}
-          </p>
+          <p>{getPaymentModelLabelForUi(therapist.paymentModel)}</p>
+          {therapist.approachSummary ? <p>{therapist.approachSummary}</p> : null}
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{therapist.endorsementCount} trusted-by endorsements</span>
+          <span className="text-muted-foreground">
+            {therapist.endorsementCount} trusted-by
+          </span>
           <div className="flex items-center gap-2">
             {canFollow ? (
               <form action={therapist.isFollowed ? unfollowClinician : followClinician}>

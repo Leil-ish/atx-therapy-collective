@@ -244,7 +244,7 @@ async function getSupplementalTherapistFields(
     therapistProfileIds.length
       ? admin
           .from("therapist_profiles")
-          .select("id, headline, featured_links, offerings")
+          .select("id, headline, featured_links, offerings, public_email, public_phone")
           .in("id", therapistProfileIds)
       : Promise.resolve({ data: [] as unknown[], error: null }),
     profileIds.length
@@ -276,11 +276,13 @@ function mapTherapistSummary(
   row: Record<string, unknown>,
   trustedBy: Map<string, { id: string; name: string; slug: string }[]>,
   followedProfileIds: Set<string>,
-  curatedListTitles: Map<string, string[]>
+  curatedListTitles: Map<string, string[]>,
+  viewerProfileId?: string
 ): PublicTherapistSummary {
   const profileId = String(row.profile_id);
   const paymentModel = (row.payment_model as PaymentModel | null) ?? "both";
   const therapistProfileId = String(row.therapist_profile_id);
+  const trustedConnections = trustedBy.get(profileId) ?? [];
 
   return {
     id: therapistProfileId,
@@ -305,11 +307,14 @@ function mapTherapistSummary(
     availabilityUpdatedAtLabel: formatRelativeDateLabel(row.availability_updated_at as string | null),
     inPerson: Boolean(row.offers_in_person),
     telehealth: Boolean(row.offers_telehealth),
-    trustedBy: trustedBy.get(profileId) ?? [],
+    trustedBy: trustedConnections,
     featuredLinks: asArray(row.featured_links),
     offerings: asArray(row.offerings),
     curatedListTitles: curatedListTitles.get(therapistProfileId) ?? [],
+    publicEmail: typeof row.public_email === "string" ? row.public_email : undefined,
+    publicPhone: typeof row.public_phone === "string" ? row.public_phone : undefined,
     isFollowed: followedProfileIds.has(profileId),
+    trustedByViewer: viewerProfileId ? trustedConnections.some((connection) => connection.id === viewerProfileId) : false,
     membershipTier: (row.membership_tier as MembershipTier | null) ?? "free",
     sponsorName: undefined
   };
@@ -328,7 +333,7 @@ export async function getPublicTherapists(
   let queryBuilder = admin
     .from("public_therapist_directory")
     .select(
-      "therapist_profile_id, profile_id, slug, city, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, public_endorsement_count, payment_model",
+      "therapist_profile_id, profile_id, slug, city, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, public_endorsement_count, payment_model, public_email, public_phone",
       { count: "exact" }
     )
 
@@ -373,18 +378,35 @@ export async function getPublicTherapists(
   ]);
 
   return {
-    therapists: rows.map((row) =>
-      mapTherapistSummary(
-        {
-          ...row,
-          ...therapistFields.get(String(row.therapist_profile_id)),
-          ...profileFields.get(String(row.profile_id))
-        },
-        trustedBy,
-        followedProfileIds,
-        curatedListTitles
+    therapists: rows
+      .map((row) =>
+        mapTherapistSummary(
+          {
+            ...row,
+            ...therapistFields.get(String(row.therapist_profile_id)),
+            ...profileFields.get(String(row.profile_id))
+          },
+          trustedBy,
+          followedProfileIds,
+          curatedListTitles,
+          viewerProfileId
+        )
       )
-    ),
+      .sort((a, b) => {
+        const trustA = Number(Boolean(a.isFollowed || a.trustedByViewer));
+        const trustB = Number(Boolean(b.isFollowed || b.trustedByViewer));
+
+        if (trustA !== trustB) {
+          return trustB - trustA;
+        }
+
+        const availabilityRank = { accepting: 2, waitlist: 1, full: 0 } as const;
+        if (availabilityRank[a.availabilityStatus] !== availabilityRank[b.availabilityStatus]) {
+          return availabilityRank[b.availabilityStatus] - availabilityRank[a.availabilityStatus];
+        }
+
+        return b.endorsementCount - a.endorsementCount;
+      }),
     totalCount: count ?? 0
   };
 }
@@ -394,7 +416,7 @@ export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: s
   const { data: rawRow } = await admin
     .from("public_therapist_directory")
     .select(
-      "therapist_profile_id, profile_id, slug, city, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, public_endorsement_count, payment_model"
+      "therapist_profile_id, profile_id, slug, city, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, public_endorsement_count, payment_model, public_email, public_phone"
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -417,7 +439,8 @@ export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: s
     },
     trustedBy,
     followedProfileIds,
-    curatedListTitles
+    curatedListTitles,
+    viewerProfileId
   );
 }
 
@@ -492,8 +515,7 @@ export async function getMemberFeedItems(profileId?: string) {
       isFollowedAuthor
     } satisfies FeedItem;
   })
-    .sort((a, b) => Number((b as FeedItem & { isFollowedAuthor?: boolean }).isFollowedAuthor) - Number((a as FeedItem & { isFollowedAuthor?: boolean }).isFollowedAuthor))
-    .map(({ isFollowedAuthor: _isFollowedAuthor, ...item }) => item);
+    .sort((a, b) => Number(Boolean(b.isFollowedAuthor)) - Number(Boolean(a.isFollowedAuthor)));
 }
 
 export async function getReferralLinksForMember(userId: string, sponsorName: string) {
