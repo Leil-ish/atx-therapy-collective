@@ -29,13 +29,14 @@ function getStatusCopy(error?: string, saved?: string) {
 export default async function MemberEndorsementsPage({
   searchParams
 }: {
-  searchParams?: Promise<{ saved?: string; error?: string }>;
+  searchParams?: Promise<{ saved?: string; error?: string; endorsedProfileId?: string }>;
 }) {
   const session = await getSession();
   const params = searchParams ? await searchParams : undefined;
   const statusCopy = getStatusCopy(params?.error, params?.saved);
   const endorsements = session ? await getEndorsementsForMember(session.userId) : [];
   const candidates = session ? await getEndorsementCandidates(session.userId) : [];
+  const preselectedProfileId = params?.endorsedProfileId?.trim() ?? "";
 
   return (
     <div className="space-y-6">
@@ -44,10 +45,10 @@ export default async function MemberEndorsementsPage({
           <CardTitle>Trusted-by endorsements</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-          <p>Active therapist members can endorse another therapist in under a minute. Keep it lightweight: a short trust statement and a public/private toggle.</p>
+          <p>Mark the clinicians you would confidently refer to.</p>
           {statusCopy ? <div className="rounded-[24px] border bg-background p-4">{statusCopy}</div> : null}
           <form action={createEndorsement} className="space-y-4">
-            <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue="" name="endorsedProfileId">
+            <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue={preselectedProfileId} name="endorsedProfileId">
               <option value="" disabled>
                 Select a therapist
               </option>
@@ -60,7 +61,7 @@ export default async function MemberEndorsementsPage({
             <textarea
               className="min-h-32 w-full rounded-2xl border bg-background px-4 py-3 text-sm"
               name="quote"
-              placeholder="What makes this therapist someone you would confidently refer to?"
+              placeholder="Why would you confidently refer to this clinician?"
             />
             <label className="flex items-center gap-2 text-sm">
               <input defaultChecked name="isPublic" type="checkbox" />

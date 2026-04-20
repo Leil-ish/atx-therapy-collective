@@ -45,9 +45,14 @@ export default async function TherapistProfilePage({
                   <input name="followedProfileId" type="hidden" value={therapist.profileId} />
                   <input name="returnTo" type="hidden" value={`/directory/${therapist.slug}`} />
                   <Button type="submit" variant={therapist.isFollowed ? "outline" : "default"}>
-                    {therapist.isFollowed ? "Following" : "Follow this clinician"}
+                    {therapist.isFollowed ? "Prioritized in matches" : "Prioritize in matches"}
                   </Button>
                 </form>
+                <Button asChild variant="outline">
+                  <a href={`/member/endorsements?endorsedProfileId=${encodeURIComponent(therapist.profileId)}`}>
+                    Mark trusted
+                  </a>
+                </Button>
                 {therapist.publicEmail ? (
                   <Button asChild variant="outline">
                     <a href={`mailto:${therapist.publicEmail}?subject=${encodeURIComponent(`Referral inquiry for ${therapist.displayName}`)}`}>
@@ -56,6 +61,9 @@ export default async function TherapistProfilePage({
                   </Button>
                 ) : null}
               </div>
+            ) : null}
+            {session?.userId && session.userId !== therapist.profileId ? (
+              <p className="text-sm text-muted-foreground">Prioritized clinicians rank higher in your matches and referral feed.</p>
             ) : null}
             <p className="leading-7 text-muted-foreground">{therapist.bio}</p>
             {therapist.offerings.length > 0 ? (

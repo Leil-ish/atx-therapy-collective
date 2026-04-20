@@ -62,9 +62,16 @@ export function TherapistCard({
                 <input name="followedProfileId" type="hidden" value={therapist.profileId} />
                 <input name="returnTo" type="hidden" value={returnTo} />
                 <Button size="sm" type="submit" variant={therapist.isFollowed ? "outline" : "ghost"}>
-                  {therapist.isFollowed ? "Following" : "Follow"}
+                  {therapist.isFollowed ? "Prioritized" : "Prioritize"}
                 </Button>
               </form>
+            ) : null}
+            {canFollow ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/member/endorsements?endorsedProfileId=${encodeURIComponent(therapist.profileId)}`}>
+                  Mark trusted
+                </Link>
+              </Button>
             ) : null}
             <Link className="font-medium text-primary hover:text-primary/80" href={`/directory/${therapist.slug}`}>
               View profile

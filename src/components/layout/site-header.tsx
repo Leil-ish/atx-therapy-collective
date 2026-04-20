@@ -12,6 +12,7 @@ const publicNav = [
 
 export async function SiteHeader() {
   const session = await getSession();
+  const navItems = session ? publicNav.filter((item) => item.href !== "/join/apply") : publicNav;
 
   return (
     <header className="sticky top-0 z-20 border-b border-primary/10 bg-background/90 backdrop-blur">
@@ -27,7 +28,7 @@ export async function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">
-          {publicNav.map((item) => (
+          {navItems.map((item) => (
             <Link className="text-sm text-muted-foreground hover:text-foreground" href={item.href} key={item.href}>
               {item.label}
             </Link>
@@ -46,9 +47,11 @@ export async function SiteHeader() {
               <Link href="/login">Member sign in</Link>
             </Button>
           )}
-          <Button asChild variant="outline">
-            <Link href="/join/apply">Join</Link>
-          </Button>
+          {session ? null : (
+            <Button asChild variant="outline">
+              <Link href="/join/apply">Join</Link>
+            </Button>
+          )}
         </div>
       </div>
     </header>

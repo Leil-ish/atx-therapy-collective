@@ -328,29 +328,6 @@ export function ReferralComposeForm({
     window.location.href = buildMailtoHref(formData, senderEmail);
   }
 
-  function openEmailDraft() {
-    const formElement = formRef.current;
-    if (!formElement) return;
-
-    const formData = new FormData(formElement);
-    const currentTitle = String(formData.get("title") ?? "").trim();
-    const currentBody = String(formData.get("body") ?? "").trim();
-    const directEmail = String(formData.get("directEmail") ?? "").trim();
-
-    if (!currentTitle || !currentBody) {
-      setDraftError("Add a title and details before opening an email draft.");
-      return;
-    }
-
-    if (!directEmail) {
-      setDraftError("Add a direct email address or use Email match from a result card.");
-      return;
-    }
-
-    setDraftError(null);
-    window.location.href = buildMailtoHref(formData, senderEmail);
-  }
-
   return (
     <form action={createMemberPost} className="space-y-6" onChange={() => setFormVersion((value) => value + 1)} ref={formRef}>
       {statusCopy ? <div className="rounded-2xl border bg-background p-4 text-sm leading-7 text-muted-foreground">{statusCopy}</div> : null}
@@ -379,12 +356,6 @@ export function ReferralComposeForm({
             </option>
           ))}
         </select>
-        <input
-          className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-          name="directEmail"
-          placeholder="Direct email for a draft"
-          type="email"
-        />
         <textarea
           className="min-h-36 w-full rounded-2xl border bg-white px-4 py-3 text-sm md:col-span-2"
           name="body"
@@ -491,17 +462,10 @@ export function ReferralComposeForm({
         selected={insuranceWanted}
       />
 
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit">Post to network</Button>
-        <Button onClick={openEmailDraft} type="button" variant="outline">
-          Open email draft
-        </Button>
-      </div>
-
       <div className="space-y-4 rounded-2xl border bg-background p-4">
         <div className="space-y-1">
           <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Top matches</p>
-          <p className="text-sm text-muted-foreground">Trusted clinicians rank first, then fit, availability, and endorsement strength.</p>
+          <p className="text-sm text-muted-foreground">Trusted clinicians rank first, then fit, availability, and endorsement strength. Email happens from a specific match.</p>
         </div>
 
         {matchedTherapists.length > 0 ? (
@@ -549,6 +513,14 @@ export function ReferralComposeForm({
         ) : (
           <p className="text-sm text-muted-foreground">Choose criteria to narrow the list. Dealbreakers filter. Nice-to-haves rank.</p>
         )}
+      </div>
+
+      <div className="space-y-3 rounded-2xl border bg-background p-4">
+        <p className="text-sm font-medium text-foreground">No good fit here?</p>
+        <p className="text-sm text-muted-foreground">Post the referral to the network instead and let members respond.</p>
+        <div className="flex flex-wrap gap-3">
+          <Button type="submit" variant="outline">Post to network instead</Button>
+        </div>
       </div>
     </form>
   );

@@ -20,8 +20,8 @@ export default async function MemberFollowingPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Following</p>
-        <h2 className="font-serif text-4xl">Trusted clinicians</h2>
+        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Prioritized</p>
+        <h2 className="font-serif text-4xl">Prioritized clinicians</h2>
       </div>
 
       {following.length > 0 ? (
@@ -54,14 +54,14 @@ export default async function MemberFollowingPage() {
         </div>
       ) : (
         <EmptyState
-          title="No followed clinicians yet"
-          description="Follows shape the feed and make trust easier to scan."
+          title="No prioritized clinicians yet"
+          description="Prioritized clinicians rank higher in your matches and feed."
         />
       )}
 
       <Card className="bg-white/90">
         <CardHeader>
-          <CardTitle>Suggested clinicians to follow</CardTitle>
+          <CardTitle>Suggested clinicians to prioritize</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
           {suggestions.map((therapist) => (
@@ -76,7 +76,7 @@ export default async function MemberFollowingPage() {
                   <form action={followClinician}>
                     <input name="followedProfileId" type="hidden" value={therapist.profileId} />
                     <input name="returnTo" type="hidden" value="/member/following" />
-                    <Button size="sm" type="submit">Follow</Button>
+                    <Button size="sm" type="submit">Prioritize</Button>
                   </form>
                 )}
               </div>
