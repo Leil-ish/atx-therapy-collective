@@ -31,7 +31,7 @@ export default async function NewPostPage({
         <CardTitle>Send a referral</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <ReferralComposeForm senderEmail={session?.email} statusCopy={statusCopy} therapists={therapists} />
+        <ReferralComposeForm currentUserId={session?.userId} senderEmail={session?.email} statusCopy={statusCopy} therapists={therapists} />
       </CardContent>
     </Card>
   );

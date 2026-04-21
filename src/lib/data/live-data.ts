@@ -10,7 +10,8 @@ import type {
   MembershipTier,
   PaymentModel,
   PublicTherapistSummary,
-  ReferralLinkSummary
+  ReferralLinkSummary,
+  ReferralMessage
 } from "@/types";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -602,6 +603,82 @@ export async function getEndorsementsForMember(profileId: string) {
     isPublic: Boolean(endorsement.is_public)
   })) satisfies EndorsementSummary[];
 }
+
+export async function sendReferralMessage(
+  senderProfileId: string,
+  receiverProfileId: string,
+  body: string,
+  referralRequestId?: string
+): Promise<ReferralMessage | null> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("referral_messages")
+    .insert({
+      sender_profile_id: senderProfileId,
+      receiver_profile_id: receiverProfileId,
+      referral_request_id: referralRequestId,
+      body: body
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error sending referral message:", error);
+    return null;
+  }
+
+  return {
+    id: data.id,
+    senderProfileId: data.sender_profile_id,
+    receiverProfileId: data.receiver_profile_id,
+    referralRequestId: data.referral_request_id ?? undefined,
+    body: data.body,
+    readAt: data.read_at ?? undefined,
+    createdAt: data.created_at
+  };
+}
+
+export async function getReferralMessages(
+  referralRequestId: string,
+  viewerProfileId: string
+): Promise<ReferralMessage[]> {
+  const admin = createSupabaseAdminClient();
+  const { data: rawMessages, error } = await admin
+    .from("referral_messages")
+    .select("*")
+    .eq("referral_request_id", referralRequestId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching referral messages:", error);
+    return [];
+  }
+
+  // Mark messages as read if the viewer is the receiver and the message hasn't been read yet
+  const unreadMessages = (rawMessages ?? []).filter(
+    (message) =>
+      message.receiver_profile_id === viewerProfileId && message.read_at === null
+  );
+
+  if (unreadMessages.length > 0) {
+    const messageIdsToMarkRead = unreadMessages.map((message) => message.id);
+    await admin
+      .from("referral_messages")
+      .update({ read_at: new Date().toISOString() })
+      .in("id", messageIdsToMarkRead);
+  }
+
+  return (rawMessages ?? []).map((message) => ({
+    id: message.id,
+    senderProfileId: message.sender_profile_id,
+    receiverProfileId: message.receiver_profile_id,
+    referralRequestId: message.referral_request_id ?? undefined,
+    body: message.body,
+    readAt: message.read_at ?? undefined,
+    createdAt: message.created_at
+  }));
+}
+
 
 export async function getEndorsementCandidates(currentProfileId: string) {
   const { therapists } = await getPublicTherapists(undefined, 1000, 0);

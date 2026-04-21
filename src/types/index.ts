@@ -3,7 +3,7 @@ export type UserRole = "client" | "therapist" | "admin";
 export type GroupVisibility = "public" | "private_member_only";
 export type PostType = "referral_request" | "consultation_request" | "job";
 export type AvailabilityStatus = "accepting" | "waitlist" | "full";
-export type ReferralStatus = "open" | "matched" | "declined" | "closed";
+export type ReferralStatus = "open" | "matched" | "declined" | "closed" | "accepted" | "completed";
 export type PaymentModel = "private_pay" | "insurance" | "both";
 export type MembershipTier = "free" | "premium";
 
@@ -155,4 +155,25 @@ export interface CuratedListSummary {
     title: string;
     note?: string;
   }>;
+}
+
+export interface ReferralMessage {
+  id: string;
+  senderProfileId: string;
+  receiverProfileId: string;
+  referralRequestId?: string;
+  body: string;
+  readAt?: string;
+  createdAt: string;
+}
+
+export interface DirectReferral {
+  id: string;
+  senderProfileId: string;
+  receiverProfileId: string;
+  clientDetails: Record<string, unknown>;
+  status: ReferralStatus;
+  messageId?: string;
+  createdAt: string;
+  updatedAt: string;
 }

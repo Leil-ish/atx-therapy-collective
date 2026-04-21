@@ -5,7 +5,7 @@ create type public.membership_state as enum ('pending', 'active', 'rejected', 's
 create type public.group_visibility as enum ('public', 'private_member_only');
 create type public.post_kind as enum ('referral_request', 'consultation_request', 'job');
 create type public.availability_status as enum ('accepting', 'waitlist', 'full');
-create type public.referral_status as enum ('open', 'matched', 'declined', 'closed');
+create type public.referral_status as enum ('open', 'matched', 'declined', 'closed', 'accepted', 'completed');
 create type public.moderation_target_type as enum ('post', 'endorsement', 'group', 'profile');
 create type public.moderation_status as enum ('open', 'reviewing', 'resolved', 'dismissed');
 create type public.payment_model as enum ('private_pay', 'insurance', 'both');
@@ -230,545 +230,52 @@ create table public.moderation_reports (
   created_at timestamptz not null default now()
 );
 
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-create or replace function public.protect_profile_system_fields()
-returns trigger
-language plpgsql
-as $$
-begin
-  if auth.uid() = old.id and new.role <> old.role then
-    raise exception 'role cannot be changed by this user';
-  end if;
-
-  if auth.uid() = old.id and new.membership_state <> old.membership_state then
-    raise exception 'membership_state cannot be changed by this user';
-  end if;
-
-  if auth.uid() = old.id and new.approved_by is distinct from old.approved_by then
-    raise exception 'approval fields cannot be changed by this user';
-  end if;
-
-  if auth.uid() = old.id and new.can_issue_referrals <> old.can_issue_referrals then
-    raise exception 'referral permissions cannot be changed by this user';
-  end if;
-
-  if auth.uid() = old.id and new.trusted_referrer_at is distinct from old.trusted_referrer_at then
-    raise exception 'trusted referrer fields cannot be changed by this user';
-  end if;
-
-  return new;
-end;
-$$;
-
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-as $$
-  select exists (
-    select 1
-    from public.profiles
-    where id = auth.uid() and role = 'admin'
-  );
-$$;
-
-create or replace function public.is_active_member()
-returns boolean
-language sql
-stable
-as $$
-  select exists (
-    select 1
-    from public.profiles
-    where id = auth.uid()
-      and role in ('therapist', 'admin')
-      and membership_state = 'active'
-  );
-$$;
-
-create or replace function public.can_issue_referral_links()
-returns boolean
-language sql
-stable
-as $$
-  select exists (
-    select 1
-    from public.profiles
-    where id = auth.uid()
-      and role = 'therapist'
-      and membership_state = 'active'
-      and can_issue_referrals = true
-  );
-$$;
-
-create or replace function public.validate_join_request_from_invitation()
-returns trigger
-language plpgsql
-as $$
-declare
-  inviter_id uuid;
-  invite_is_active boolean;
-  invite_expires_at timestamptz;
-  invite_use_count integer;
-  invite_max_uses integer;
-begin
-  select
-    invited_by,
-    is_active,
-    expires_at,
-    use_count,
-    max_uses
-  into
-    inviter_id,
-    invite_is_active,
-    invite_expires_at,
-    invite_use_count,
-    invite_max_uses
-  from public.invitations
-  where id = new.invitation_id;
-
-  if inviter_id is null then
-    raise exception 'invalid invitation';
-  end if;
-
-  if new.endorsement_from_profile_id <> inviter_id then
-    raise exception 'endorsement sponsor must match invitation issuer';
-  end if;
-
-  if invite_is_active is not true then
-    raise exception 'invitation is inactive';
-  end if;
-
-  if invite_expires_at is not null and invite_expires_at < now() then
-    raise exception 'invitation has expired';
-  end if;
-
-  if invite_use_count >= invite_max_uses then
-    raise exception 'invitation usage limit reached';
-  end if;
-
-  return new;
-end;
-$$;
-
-create or replace function public.increment_invitation_use_count()
-returns trigger
-language plpgsql
-as $$
-begin
-  update public.invitations
-  set use_count = use_count + 1
-  where id = new.invitation_id;
-
-  return new;
-end;
-$$;
-
-create trigger set_profiles_updated_at
-before update on public.profiles
-for each row
-execute function public.set_updated_at();
-
-create trigger set_therapist_profiles_updated_at
-before update on public.therapist_profiles
-for each row
-execute function public.set_updated_at();
-
-create trigger set_join_requests_updated_at
-before update on public.join_requests
-for each row
-execute function public.set_updated_at();
-
-create trigger set_groups_updated_at
-before update on public.groups
-for each row
-execute function public.set_updated_at();
-
-create trigger set_posts_updated_at
-before update on public.posts
-for each row
-execute function public.set_updated_at();
-
-create trigger set_curated_lists_updated_at
-before update on public.curated_lists
-for each row
-execute function public.set_updated_at();
-
-create trigger protect_profile_system_fields_before_update
-before update on public.profiles
-for each row
-execute function public.protect_profile_system_fields();
-
-create trigger validate_join_request_before_insert
-before insert on public.join_requests
-for each row
-execute function public.validate_join_request_from_invitation();
-
-create trigger increment_invitation_use_count_after_insert
-after insert on public.join_requests
-for each row
-execute function public.increment_invitation_use_count();
-
-create view public.public_therapist_directory as
-select
-  tp.id as therapist_profile_id,
-  p.id as profile_id,
-  p.slug,
-  p.market_slug,
-  p.city,
-  p.state_region,
-  tp.public_display_name,
-  tp.credentials,
-  tp.title,
-  tp.headline,
-  tp.bio,
-  tp.specialties,
-  tp.insurance_accepted,
-  tp.payment_model,
-  tp.modalities,
-  tp.therapy_style_tags,
-  tp.populations,
-  tp.neighborhoods,
-  tp.approach_summary,
-  tp.featured_links,
-  tp.offerings,
-  tp.website_url,
-  tp.booking_url,
-  tp.public_email,
-  tp.public_phone,
-  tp.offers_in_person,
-  tp.offers_telehealth,
-  tp.availability_status,
-  tp.availability_updated_at,
-  coalesce((
-    select count(*)
-    from public.endorsements e
-    join public.profiles endorser on endorser.id = e.endorser_profile_id
-    where e.endorsed_profile_id = p.id
-      and e.is_public = true
-      and endorser.membership_state = 'active'
-      and endorser.role in ('therapist', 'admin')
-  ), 0)::int as public_endorsement_count
-from public.profiles p
-join public.therapist_profiles tp on tp.profile_id = p.id
-where p.membership_state = 'active'
-  and tp.is_public = true;
-
-create view public.monthly_fee_waiver_status as
-select
-  e.endorsed_profile_id as profile_id,
-  date_trunc('month', e.created_at) as endorsement_month,
-  count(*) filter (
-    where endorser.membership_state = 'active'
-      and endorser.role in ('therapist', 'admin')
-  )::int as qualifying_endorsements,
-  count(*) filter (
-    where endorser.membership_state = 'active'
-      and endorser.role in ('therapist', 'admin')
-  ) >= 5 as fees_waived
-from public.endorsements e
-join public.profiles endorser on endorser.id = e.endorser_profile_id
-group by e.endorsed_profile_id, date_trunc('month', e.created_at);
-
-alter table public.profiles enable row level security;
-alter table public.therapist_profiles enable row level security;
-alter table public.invitations enable row level security;
-alter table public.join_requests enable row level security;
-alter table public.groups enable row level security;
-alter table public.group_memberships enable row level security;
-alter table public.posts enable row level security;
-alter table public.referral_requests enable row level security;
-alter table public.consultation_requests enable row level security;
-alter table public.jobs enable row level security;
-alter table public.endorsements enable row level security;
-alter table public.moderation_reports enable row level security;
-
-create policy "public can read active public therapist profiles"
-on public.therapist_profiles
-for select
-using (
-  is_public = true
-  and exists (
-    select 1
-    from public.profiles p
-    where p.id = therapist_profiles.profile_id
-      and p.membership_state = 'active'
-  )
+create table public.referral_messages (
+  id uuid primary key default gen_random_uuid(),
+  sender_profile_id uuid not null references public.profiles(id) on delete cascade,
+  receiver_profile_id uuid not null references public.profiles(id) on delete cascade,
+  referral_request_id uuid references public.referral_requests(id) on delete set null, -- Optional: link to a specific referral request
+  body text not null,
+  read_at timestamptz, -- To track if the message has been read
+  created_at timestamptz not null default now()
 );
 
-create policy "users can read own therapist profile"
-on public.therapist_profiles
-for select
-using (profile_id = auth.uid() or public.is_admin());
+-- RLS policies for referral_messages
+alter table public.referral_messages enable row level security;
 
-create policy "users can create own therapist profile"
-on public.therapist_profiles
-for insert
-with check (profile_id = auth.uid() or public.is_admin());
+create policy "users can view own sent or received messages"
+on public.referral_messages for select
+using (sender_profile_id = auth.uid() or receiver_profile_id = auth.uid());
 
-create policy "members can update own therapist profile"
-on public.therapist_profiles
-for update
-using (profile_id = auth.uid())
-with check (profile_id = auth.uid());
+create policy "users can send messages"
+on public.referral_messages for insert
+with check (sender_profile_id = auth.uid());
 
-create policy "admins can manage therapist profiles"
-on public.therapist_profiles
-for all
-using (public.is_admin())
-with check (public.is_admin());
-
-create policy "users can read own profile"
-on public.profiles
-for select
-using (id = auth.uid() or public.is_admin());
-
-create policy "users can update own profile"
-on public.profiles
-for update
-using (id = auth.uid())
-with check (id = auth.uid());
-
-create policy "users can create own profile"
-on public.profiles
-for insert
-with check (id = auth.uid() or public.is_admin());
-
-create policy "admins can manage profiles"
-on public.profiles
-for all
-using (public.is_admin())
-with check (public.is_admin());
-
-create policy "public can read public groups"
-on public.groups
-for select
-using (visibility = 'public' or public.is_active_member() or public.is_admin());
-
-create policy "active members can create groups"
-on public.groups
-for insert
-with check (public.is_active_member());
-
-create policy "admins can manage groups"
-on public.groups
-for all
-using (public.is_admin())
-with check (public.is_admin());
-
-create policy "members can read memberships for accessible groups"
-on public.group_memberships
-for select
-using (
-  public.is_active_member()
-  and exists (
-    select 1 from public.groups g
-    where g.id = group_memberships.group_id
-      and (g.visibility = 'public' or public.is_active_member())
-  )
+create table public.direct_referrals (
+  id uuid primary key default gen_random_uuid(),
+  sender_profile_id uuid not null references public.profiles(id) on delete cascade,
+  receiver_profile_id uuid not null references public.profiles(id) on delete cascade,
+  client_details jsonb, -- Details about the client being referred (anonymized)
+  status public.referral_status not null default 'open', -- e.g., 'open', 'accepted', 'declined', 'completed'
+  message_id uuid references public.referral_messages(id) on delete set null, -- Link to the initial message
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
-create policy "active members can join groups"
-on public.group_memberships
-for insert
-with check (public.is_active_member() and profile_id = auth.uid());
+-- RLS policies for direct_referrals
+alter table public.direct_referrals enable row level security;
 
-create policy "active members can read private posts"
-on public.posts
-for select
-using (
-  (is_private = false)
-  or public.is_active_member()
-  or public.is_admin()
-);
+create policy "users can view own direct referrals"
+on public.direct_referrals for select
+using (sender_profile_id = auth.uid() or receiver_profile_id = auth.uid());
 
-create policy "active members can create posts"
-on public.posts
-for insert
-with check (
-  public.is_active_member()
-  and author_profile_id = auth.uid()
-);
+create policy "users can create direct referrals"
+on public.direct_referrals for insert
+with check (sender_profile_id = auth.uid());
 
-create policy "authors can update own posts"
-on public.posts
-for update
-using (author_profile_id = auth.uid() or public.is_admin())
-with check (author_profile_id = auth.uid() or public.is_admin());
+create policy "receiver can update direct referral status"
+on public.direct_referrals for update
+using (receiver_profile_id = auth.uid())
+with check (receiver_profile_id = auth.uid());
 
-create policy "typed post tables follow parent post visibility"
-on public.referral_requests
-for select
-using (
-  exists (
-    select 1 from public.posts p
-    where p.id = referral_requests.post_id
-      and (
-        p.is_private = false
-        or public.is_active_member()
-        or public.is_admin()
-      )
-  )
-);
 
-create policy "active members can create referral request details"
-on public.referral_requests
-for insert
-with check (
-  exists (
-    select 1 from public.posts p
-    where p.id = referral_requests.post_id
-      and p.author_profile_id = auth.uid()
-      and public.is_active_member()
-  )
-);
-
-create policy "typed consult tables follow parent post visibility"
-on public.consultation_requests
-for select
-using (
-  exists (
-    select 1 from public.posts p
-    where p.id = consultation_requests.post_id
-      and (
-        p.is_private = false
-        or public.is_active_member()
-        or public.is_admin()
-      )
-  )
-);
-
-create policy "active members can create consultation request details"
-on public.consultation_requests
-for insert
-with check (
-  exists (
-    select 1 from public.posts p
-    where p.id = consultation_requests.post_id
-      and p.author_profile_id = auth.uid()
-      and public.is_active_member()
-  )
-);
-
-create policy "typed job tables follow parent post visibility"
-on public.jobs
-for select
-using (
-  exists (
-    select 1 from public.posts p
-    where p.id = jobs.post_id
-      and (
-        p.is_private = false
-        or public.is_active_member()
-        or public.is_admin()
-      )
-  )
-);
-
-create policy "active members can create job details"
-on public.jobs
-for insert
-with check (
-  exists (
-    select 1 from public.posts p
-    where p.id = jobs.post_id
-      and p.author_profile_id = auth.uid()
-      and public.is_active_member()
-  )
-);
-
-create policy "public can read public endorsements"
-on public.endorsements
-for select
-using (
-  is_public = true
-  or public.is_active_member()
-  or public.is_admin()
-);
-
-create policy "active members can create endorsements"
-on public.endorsements
-for insert
-with check (
-  public.is_active_member()
-  and endorser_profile_id = auth.uid()
-);
-
-create policy "admins can manage endorsements"
-on public.endorsements
-for all
-using (public.is_admin())
-with check (public.is_admin());
-
-create policy "admins manage invitations"
-on public.invitations
-for all
-using (public.is_admin())
-with check (public.is_admin());
-
-create policy "trusted therapists can create invitations"
-on public.invitations
-for insert
-with check (
-  invited_by = auth.uid()
-  and (public.can_issue_referral_links() or public.is_admin())
-);
-
-create policy "inviter can read own invitations"
-on public.invitations
-for select
-using (
-  invited_by = auth.uid()
-  or public.is_admin()
-);
-
-create policy "inviter or admin can update invitations"
-on public.invitations
-for update
-using (
-  invited_by = auth.uid()
-  or public.is_admin()
-)
-with check (
-  invited_by = auth.uid()
-  or public.is_admin()
-);
-
-create policy "admins manage join requests"
-on public.join_requests
-for all
-using (public.is_admin())
-with check (public.is_admin());
-
-create policy "public can insert join requests"
-on public.join_requests
-for insert
-with check (status = 'pending');
-
-create policy "sponsors can read join requests they referred"
-on public.join_requests
-for select
-using (
-  endorsement_from_profile_id = auth.uid()
-  or public.is_admin()
-);
-
-create policy "active members can create moderation reports"
-on public.moderation_reports
-for insert
-with check (public.is_active_member() or public.is_admin());
-
-create policy "admins manage moderation reports"
-on public.moderation_reports
-for all
-using (public.is_admin())
-with check (public.is_admin());

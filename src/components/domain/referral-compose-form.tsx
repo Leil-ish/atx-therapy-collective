@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 
 import { createMemberPost } from "@/app-actions/member-actions";
+import { sendReferralMessage } from "@/lib/data/live-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -187,11 +188,13 @@ function MultiSelectChips({
 export function ReferralComposeForm({
   senderEmail,
   statusCopy,
-  therapists
+  therapists,
+  currentUserId
 }: {
   senderEmail?: string;
   statusCopy?: string | null;
   therapists: PublicTherapistSummary[];
+  currentUserId?: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
@@ -211,6 +214,7 @@ export function ReferralComposeForm({
   const [modalitiesPreference, setModalitiesPreference] = useState<PreferenceStrength>("nice_to_have");
   const [insuranceWanted, setInsuranceWanted] = useState<string[]>([]);
   const [insurancePreference, setInsurancePreference] = useState<PreferenceStrength>("nice_to_have");
+  const [messageType, setMessageType] = useState<"email" | "internal">("email");
 
   const form = formRef.current ? new FormData(formRef.current) : null;
   const title = normalizeForMatch(String(form?.get("title") ?? ""));
@@ -310,22 +314,42 @@ export function ReferralComposeForm({
     })
     .slice(0, 10);
 
-  function emailMatchedTherapist(email: string) {
+  async function handleSendMessage(receiverProfileId: string, receiverEmail?: string) {
     const formElement = formRef.current;
     if (!formElement) return;
 
     const formData = new FormData(formElement);
-    formData.set("directEmail", email);
     const currentTitle = String(formData.get("title") ?? "").trim();
     const currentBody = String(formData.get("body") ?? "").trim();
 
     if (!currentTitle || !currentBody) {
-      setDraftError("Add a referral summary and details before emailing a match.");
+      setDraftError("Add a referral summary and details before sending a message.");
       return;
     }
 
     setDraftError(null);
-    window.location.href = buildMailtoHref(formData, senderEmail);
+
+    if (messageType === "email" && receiverEmail) {
+      formData.set("directEmail", receiverEmail);
+      window.location.href = buildMailtoHref(formData, senderEmail);
+    } else if (messageType === "internal") {
+      if (currentUserId) {
+        const messageBody = JSON.stringify({ title: currentTitle, body: currentBody, structuredLines: buildStructuredLines(formData) });
+        const sentMessage = await sendReferralMessage(
+          currentUserId,
+          receiverProfileId,
+          messageBody,
+          // TODO: Potentially link to a referral request if this is tied to one. For now, it's a direct message.
+        );
+        if (sentMessage) {
+          alert("Internal message sent successfully!");
+        } else {
+          setDraftError("Failed to send internal message.");
+        }
+      } else {
+        setDraftError("User not logged in to send internal message.");
+      }
+    }
   }
 
   return (
@@ -461,6 +485,34 @@ export function ReferralComposeForm({
         preferenceName="insurancePreference"
         selected={insuranceWanted}
       />
+
+      <div className="space-y-4 rounded-2xl border bg-background p-4">
+        <div className="space-y-1">
+          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Send as</p>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="messageType"
+                value="email"
+                checked={messageType === "email"}
+                onChange={() => setMessageType("email")}
+              />
+              Email
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="messageType"
+                value="internal"
+                checked={messageType === "internal"}
+                onChange={() => setMessageType("internal")}
+              />
+              Internal Message
+            </label>
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-4 rounded-2xl border bg-background p-4">
         <div className="space-y-1">
