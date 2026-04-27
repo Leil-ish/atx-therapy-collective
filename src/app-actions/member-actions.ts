@@ -50,6 +50,23 @@ function buildStructuredReferralSummary(formData: FormData) {
   return lines.join("\n");
 }
 
+function parseClientDetailsFromFormData(formData: FormData) {
+  return {
+    title: String(formData.get("title") ?? "").trim(),
+    body: String(formData.get("body") ?? "").trim(),
+    regionWanted: String(formData.get("regionWanted") ?? "").trim(),
+    regionPreference: String(formData.get("regionPreference") ?? "").trim(),
+    presentingIssues: String(formData.get("presentingIssues") ?? "").trim(),
+    populationsWanted: String(formData.get("populationsWanted") ?? "").trim(),
+    modalitiesWanted: String(formData.get("modalitiesWanted") ?? "").trim(),
+    insuranceWanted: String(formData.get("insuranceWanted") ?? "").trim(),
+    paymentWanted: String(formData.get("paymentWanted") ?? "").trim(),
+    formatWanted: String(formData.get("formatWanted") ?? "").trim(),
+    levelOfCare: String(formData.get("levelOfCare") ?? "").trim(),
+    urgencyLevel: String(formData.get("urgencyLevel") ?? "").trim()
+  };
+}
+
 function buildStructuredLine(label: string, value: FormDataEntryValue | null, preference: FormDataEntryValue | null) {
   const text = String(value ?? "")
     .split(",")
@@ -149,6 +166,54 @@ export async function createMemberPost(formData: FormData) {
   revalidatePath("/member");
   revalidatePath("/member/feed");
   redirect("/member/feed?created=1");
+}
+
+export async function sendDirectReferral(formData: FormData) {
+  const session = await requireMember();
+  const admin = createSupabaseAdminClient();
+
+  const receiverProfileId = String(formData.get("receiverProfileId") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+  const returnTo = String(formData.get("returnTo") ?? "/member").trim();
+  const clientDetails = parseClientDetailsFromFormData(formData);
+  const messageBody = [buildStructuredReferralSummary(formData), "", "Details:", body].filter(Boolean).join("\n");
+
+  if (!receiverProfileId || !title || !body || receiverProfileId === session.userId) {
+    redirect(`${returnTo}?directReferralError=1` as never);
+  }
+
+  const { data: message, error: messageError } = await admin
+    .from("referral_messages")
+    .insert({
+      sender_profile_id: session.userId,
+      receiver_profile_id: receiverProfileId,
+      body: messageBody
+    })
+    .select("id")
+    .single();
+
+  if (messageError || !message) {
+    redirect(`${returnTo}?directReferralError=1` as never);
+  }
+
+  const { error: referralError } = await admin.from("direct_referrals").insert({
+    sender_profile_id: session.userId,
+    receiver_profile_id: receiverProfileId,
+    client_details: clientDetails,
+    status: "open",
+    message_id: message.id
+  });
+
+  if (referralError) {
+    await admin.from("referral_messages").delete().eq("id", message.id);
+    redirect(`${returnTo}?directReferralError=1` as never);
+  }
+
+  revalidatePath("/member");
+  revalidatePath("/member/feed");
+  revalidatePath("/member/posts/new");
+  redirect(`${returnTo}?directReferralSent=1` as never);
 }
 
 export async function submitJoinApplication(formData: FormData) {

@@ -9,7 +9,7 @@ export default function PublicGroupsPage() {
       <section className="mx-auto max-w-6xl space-y-8 px-6 py-16">
         <SectionHeading
           eyebrow="Groups"
-          title="Public-facing groups that reflect the collective"
+          title="Public-facing groups for Austin Therapist Exchange"
           description="Public groups are discoverable without login, while any private therapist collaboration remains in the member area."
         />
         <div className="grid gap-6 md:grid-cols-2">

@@ -6,24 +6,28 @@ import { Button } from "@/components/ui/button";
 
 const publicNav = [
   { href: "/directory", label: "Directory" },
-  { href: "/join/apply", label: "Join" },
-  { href: "/about", label: "Beta" }
+  { href: "/member/referrals", label: "Referrals" },
+  { href: "/member/network", label: "Colleagues" }
 ] as const;
 
 export async function SiteHeader() {
   const session = await getSession();
-  const navItems = session ? publicNav.filter((item) => item.href !== "/join/apply") : publicNav;
+  const navItems = publicNav;
 
   return (
-    <header className="sticky top-0 z-20 border-b border-primary/10 bg-background/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-primary/10 bg-[rgba(255,251,245,0.9)] backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link className="flex items-center gap-3" href="/">
-          <div className="flex h-11 w-11 items-center justify-center rounded-sm border border-primary/20 bg-primary text-sm font-semibold tracking-[0.2em] text-primary-foreground">
-            T
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/15 bg-white/85 shadow-paper">
+            <svg aria-hidden="true" className="h-10 w-10" viewBox="0 0 64 64">
+              <path d="M23 11c8 0 14 6 14 14S31 39 23 39 9 33 9 25s6-14 14-14Z" fill="none" stroke="#146f73" strokeWidth="5" strokeLinecap="round" strokeDasharray="76 18" />
+              <path d="M41 11c8 0 14 6 14 14s-6 14-14 14-14-6-14-14 6-14 14-14Z" fill="none" stroke="#f7a141" strokeWidth="5" strokeLinecap="round" strokeDasharray="76 18" />
+              <path d="M32 25c8 0 14 6 14 14s-6 14-14 14-14-6-14-14 6-14 14-14Z" fill="none" stroke="#e25f1c" strokeWidth="5" strokeLinecap="round" strokeDasharray="76 18" />
+            </svg>
           </div>
           <div>
-            <p className="font-serif text-xl leading-none">Trusted Therapist Collective</p>
-            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Austin referrals</p>
+            <p className="font-serif text-[1.45rem] leading-none tracking-[0.01em]">Austin Therapist Exchange</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Referrals for Austin therapists</p>
           </div>
         </Link>
 
@@ -37,19 +41,24 @@ export async function SiteHeader() {
 
         <div className="flex items-center gap-3">
           {session ? (
-            <form action={signOut}>
-              <Button type="submit" variant="ghost">
-                Sign out
+            <>
+              <Button asChild variant="ghost">
+                <Link href="/member/referrals">Go to referrals</Link>
               </Button>
-            </form>
+              <form action={signOut}>
+                <Button type="submit" variant="outline">
+                  Sign out
+                </Button>
+              </form>
+            </>
           ) : (
             <Button asChild variant="ghost">
-              <Link href="/login">Member sign in</Link>
+              <Link href="/login">Sign in</Link>
             </Button>
           )}
           {session ? null : (
             <Button asChild variant="outline">
-              <Link href="/join/apply">Join</Link>
+              <Link href="/join/apply">Request access</Link>
             </Button>
           )}
         </div>

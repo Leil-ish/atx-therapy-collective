@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="bg" x1="6" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f8f3eb" />
-      <stop offset="1" stop-color="#e4dccd" />
+    <linearGradient id="bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fdf8ef" />
+      <stop offset="1" stop-color="#efe1cb" />
     </linearGradient>
   </defs>
   <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#bg)" />
-  <path d="M18 18h28v4H34v24h-4V22H18z" fill="#213a31" />
-  <path d="M18 28h28v4H36v14h-8v-4h4V32H18z" fill="#55705f" />
-  <path d="M18 38h20v4H30v8h-4v-8H18z" fill="#213a31" />
+  <path d="M25 14c6.8 0 12 5.2 12 12s-5.2 12-12 12-12-5.2-12-12 5.2-12 12-12Z" fill="none" stroke="#146f73" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="58 14" />
+  <path d="M39 14c6.8 0 12 5.2 12 12s-5.2 12-12 12-12-5.2-12-12 5.2-12 12-12Z" fill="none" stroke="#f7a141" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="58 14" />
+  <path d="M32 26c6.8 0 12 5.2 12 12s-5.2 12-12 12-12-5.2-12-12 5.2-12 12-12Z" fill="none" stroke="#e25f1c" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="58 14" />
 </svg>

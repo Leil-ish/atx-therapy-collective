@@ -40,7 +40,8 @@ const config: Config = {
         serif: ["var(--font-serif)", "ui-serif", "Georgia"]
       },
       boxShadow: {
-        soft: "0 18px 50px -28px rgba(50, 63, 56, 0.35)"
+        soft: "0 22px 50px -30px rgba(34, 92, 94, 0.28)",
+        paper: "0 8px 24px rgba(164, 132, 92, 0.12)"
       }
     }
   },

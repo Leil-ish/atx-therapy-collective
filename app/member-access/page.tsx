@@ -22,14 +22,14 @@ function getStateCopy(state: MembershipState, rejectionReason?: string | null) {
       title: "Membership not approved",
       body:
         rejectionReason?.trim() ||
-        "Your application is not currently approved. If this seems incorrect, reach out to the collective admin."
+        "Your application is not currently approved. If this seems incorrect, reach out to an Austin Therapist Exchange admin."
     };
   }
 
   if (state === "suspended") {
     return {
       title: "Membership paused",
-      body: "Your member access is currently paused. Reach out to the collective admin if you need clarification."
+      body: "Your member access is currently paused. Reach out to an Austin Therapist Exchange admin if you need clarification."
     };
   }
 

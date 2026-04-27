@@ -177,3 +177,24 @@ export interface DirectReferral {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface DirectReferralActivityItem {
+  id: string;
+  direction: "incoming" | "outgoing";
+  counterpartName: string;
+  counterpartSlug?: string;
+  title: string;
+  region?: string;
+  paymentModel?: string;
+  status: ReferralStatus;
+  readAt?: string;
+  createdAtLabel: string;
+}
+
+export interface DirectReferralActivitySummary {
+  sentCount: number;
+  receivedCount: number;
+  exchangedCount: number;
+  incoming: DirectReferralActivityItem[];
+  outgoing: DirectReferralActivityItem[];
+}

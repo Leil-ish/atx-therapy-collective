@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { signInWithMagicLink, signInWithPassword } from "@/app-actions/auth-actions";
+import { sendPasswordResetEmail, signInWithMagicLink, signInWithPassword } from "@/app-actions/auth-actions";
 import { PageShell } from "@/components/layout/page-shell";
 import { SectionHeading } from "@/components/layout/section-heading";
 import { Button } from "@/components/ui/button";
@@ -23,13 +23,17 @@ function getErrorCopy(error?: string, mode?: string) {
     return "Those credentials did not match an active account. Double-check the email and password, or fall back to a magic link if needed.";
   }
 
+  if (mode === "reset" && error === "recovery-session-missing") {
+    return "That reset session is no longer active. Request a fresh reset link.";
+  }
+
   return error ? `Sign-in error: ${error}` : null;
 }
 
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams?: Promise<{ sent?: string; error?: string; mode?: string }>;
+  searchParams?: Promise<{ sent?: string; resetSent?: string; recovered?: string; error?: string; mode?: string }>;
 }) {
   const params = searchParams ? await searchParams : undefined;
   const errorCopy = getErrorCopy(params?.error, params?.mode);
@@ -51,6 +55,11 @@ export default async function LoginPage({
             {params?.sent ? (
               <div className="rounded-[24px] border bg-background p-4">
                 Magic link sent. Check your inbox.
+              </div>
+            ) : null}
+            {params?.recovered ? (
+              <div className="rounded-[24px] border bg-background p-4">
+                Password updated. You can sign in with it now.
               </div>
             ) : null}
             {errorCopy ? (
@@ -78,8 +87,32 @@ export default async function LoginPage({
               <Button type="submit">Sign in with password</Button>
             </form>
             <p className="text-xs leading-6 text-muted-foreground">
-              No password yet? An admin can set one for the beta cohort.
+              No password yet? An admin can set one for your account.
             </p>
+            <form action={sendPasswordResetEmail} className="space-y-4 rounded-[24px] border bg-background p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Forgot your password?</p>
+                <p className="text-xs leading-6 text-muted-foreground">
+                  Enter your email and we&apos;ll send a reset link.
+                </p>
+              </div>
+              {params?.resetSent ? (
+                <div className="rounded-[20px] border bg-white px-4 py-3 text-xs">
+                  Reset link sent. Check your inbox.
+                </div>
+              ) : null}
+              <input
+                autoCapitalize="none"
+                autoCorrect="off"
+                className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+                inputMode="email"
+                name="email"
+                placeholder="Therapist email"
+                spellCheck={false}
+                type="email"
+              />
+              <Button type="submit" variant="outline">Send reset link</Button>
+            </form>
           </CardContent>
         </Card>
 

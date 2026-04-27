@@ -68,7 +68,7 @@ export default async function AdminJoinRequestsPage({
                   </label>
                   <label className="flex items-center gap-2">
                     <input name="grantPremium" type="checkbox" />
-                    Assign premium beta tier on approval
+                    Assign premium tier on approval
                   </label>
                   <textarea
                     className="min-h-24 w-full rounded-2xl border bg-background px-4 py-3 text-sm"

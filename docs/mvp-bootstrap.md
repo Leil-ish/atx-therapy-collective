@@ -75,7 +75,7 @@ Once you are the first active admin/trusted referrer:
 
 - The app keeps the 2-step entry path: apply first, sign in after approval.
 - The script uses `SUPABASE_SERVICE_ROLE_KEY`, so run it only from your local trusted environment.
-- You can also set or reset an initial beta password for an existing auth user:
+- You can also set or reset an initial password for an existing auth user:
 
 ```bash
 npm run bootstrap:mvp -- password --email you@example.com --password 'TempPassword123!'

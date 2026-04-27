@@ -3,21 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --background: 42 24% 95%;
-  --foreground: 150 20% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 150 20% 12%;
-  --primary: 153 26% 18%;
-  --primary-foreground: 42 29% 97%;
-  --secondary: 34 24% 89%;
-  --secondary-foreground: 150 20% 18%;
-  --muted: 40 17% 91%;
-  --muted-foreground: 150 9% 34%;
-  --accent: 46 31% 85%;
-  --accent-foreground: 150 20% 16%;
-  --border: 34 14% 78%;
-  --input: 34 14% 78%;
-  --ring: 153 26% 18%;
+  --background: 36 46% 96%;
+  --foreground: 182 72% 25%;
+  --card: 42 33% 98%;
+  --card-foreground: 182 72% 22%;
+  --primary: 20 80% 50%;
+  --primary-foreground: 40 50% 98%;
+  --secondary: 42 52% 91%;
+  --secondary-foreground: 182 56% 24%;
+  --muted: 40 28% 92%;
+  --muted-foreground: 182 23% 35%;
+  --accent: 33 94% 61%;
+  --accent-foreground: 182 72% 22%;
+  --border: 30 25% 77%;
+  --input: 30 25% 77%;
+  --ring: 20 80% 50%;
   --font-sans: "Instrument Sans";
   --font-serif: "Cormorant Garamond";
 }
@@ -33,9 +33,22 @@ html {
 body {
   @apply bg-background text-foreground antialiased;
   background-image:
-    radial-gradient(circle at top left, rgba(177, 194, 171, 0.38), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(201, 187, 159, 0.28), transparent 22%),
-    linear-gradient(180deg, rgba(255, 253, 249, 0.86), rgba(245, 240, 232, 0.98));
+    radial-gradient(circle at top left, rgba(248, 179, 91, 0.13), transparent 24%),
+    radial-gradient(circle at top right, rgba(226, 95, 28, 0.08), transparent 18%),
+    radial-gradient(circle at bottom left, rgba(20, 111, 115, 0.12), transparent 22%),
+    linear-gradient(180deg, rgba(255, 252, 245, 0.95), rgba(246, 238, 224, 0.98));
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(20, 111, 115, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 111, 115, 0.02) 1px, transparent 1px);
+  background-size: 28px 28px;
 }
 
 a {
@@ -43,5 +56,5 @@ a {
 }
 
 ::selection {
-  background: rgba(44, 66, 55, 0.18);
+  background: rgba(226, 95, 28, 0.2);
 }

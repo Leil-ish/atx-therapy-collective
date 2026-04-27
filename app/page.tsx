@@ -33,36 +33,36 @@ export default async function HomePage({
       <section className="mx-auto grid max-w-6xl gap-8 px-6 py-14 md:grid-cols-[1.25fr_0.75fr] md:py-18">
         <div className="space-y-6">
           <div className="space-y-4">
-            <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">Trusted therapist collective</p>
+            <p className="text-sm uppercase tracking-[0.28em] text-muted-foreground">For Austin therapists</p>
             <h1 className="max-w-4xl font-serif text-5xl leading-[0.95] text-foreground md:text-6xl">
-              Therapist directory, referrals, and trust signal for Austin clinicians.
+              Find a therapist for a referral.
             </h1>
             <p className="max-w-2xl text-base leading-7 text-muted-foreground">
-              Browse who is available, who is trusted, and where referrals fit best.
+              See who has openings, who takes insurance, and who people you know would refer to.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link href="/directory">Browse therapists</Link>
+              <Link href="/directory">Find a therapist</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link href={(session ? "/member/feed" : "/login") as never}>{session ? "Referrals" : "Member sign in"}</Link>
+              <Link href={(session ? "/member/referrals" : "/login") as never}>{session ? "Make a referral" : "Sign in"}</Link>
             </Button>
             <Button asChild size="lg" variant="ghost">
-              <Link href="/join/apply">Join the beta</Link>
+              <Link href={(session ? "/member/network" : "/join/apply") as never}>{session ? "See colleagues" : "Request access"}</Link>
             </Button>
           </div>
         </div>
 
         <Card className="border-primary/10 bg-white/70 shadow-none">
           <CardHeader>
-            <CardTitle>Available now</CardTitle>
+            <CardTitle>Local referrals, in one place</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-            <p>Directory filters for availability, payment, and care format.</p>
-            <p>Referral posting inside the member workspace.</p>
-            <p>Follow clinicians and build short curated trust lists.</p>
+            <p>Look for a therapist by neighborhood, insurance, specialty, and openings.</p>
+            <p>See who you know, and who your colleagues know.</p>
+            <p>Send a referral without digging through old posts, texts, or listserv threads.</p>
           </CardContent>
         </Card>
       </section>
@@ -71,10 +71,10 @@ export default async function HomePage({
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="space-y-2">
             <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Directory</p>
-            <h2 className="font-serif text-4xl leading-tight text-foreground">Current clinicians</h2>
+            <h2 className="font-serif text-4xl leading-tight text-foreground">Austin therapists</h2>
           </div>
           <Button asChild variant="outline">
-            <Link href="/directory">Open directory</Link>
+            <Link href="/directory">View directory</Link>
           </Button>
         </div>
         {therapists.length > 0 ? (
@@ -85,8 +85,8 @@ export default async function HomePage({
           </div>
         ) : (
           <EmptyState
-            title="Profiles are coming online"
-            description="Featured profiles appear here as members complete the basics."
+            title="Profiles will appear here"
+            description="As more therapists join and complete their profiles, they will appear here."
           />
         )}
       </section>

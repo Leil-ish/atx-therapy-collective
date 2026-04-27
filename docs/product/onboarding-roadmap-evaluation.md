@@ -2,7 +2,7 @@
 
 ## Summary
 
-The proposed 5-page onboarding flow is too heavy for the current ATX Therapy Collective MVP.
+The proposed 5-page onboarding flow is too heavy for the current Austin Therapist Exchange MVP.
 
 It asks new members to do too much unpaid profile setup before they have experienced any value, and it drifts away from the product's current posture: referral-link-based entry, lightweight activation, and fast referral usefulness over exhaustive profile completeness.
 

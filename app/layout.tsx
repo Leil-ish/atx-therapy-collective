@@ -14,8 +14,10 @@ const serif = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "Trusted Therapist Collective",
-  description: "A trust-based referral and visibility network for Austin clinicians."
+  metadataBase: new URL("https://austintherapistexchange.com"),
+  title: "Austin Therapist Exchange",
+  description: "A private therapist referral network for Austin clinicians.",
+  applicationName: "Austin Therapist Exchange"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -3,6 +3,7 @@ import "server-only";
 import type {
   AvailabilityStatus,
   CuratedListSummary,
+  DirectReferralActivitySummary,
   EndorsementSummary,
   FeedItem,
   FollowedClinicianSummary,
@@ -350,7 +351,10 @@ export async function getPublicTherapists(
   }
 
   if (payment) {
-    queryBuilder = queryBuilder.eq("payment_model", payment);
+    queryBuilder = queryBuilder.in(
+      "payment_model",
+      payment === "both" ? ["both"] : [payment, "both"]
+    );
   }
 
   if (format) {
@@ -445,6 +449,88 @@ export async function getPublicTherapistBySlug(slug: string, viewerProfileId?: s
   );
 }
 
+export async function getReferralCandidateTherapists(
+  viewerProfileId?: string
+): Promise<PublicTherapistSummary[]> {
+  const admin = createSupabaseAdminClient();
+  const { data: rawProfiles } = await admin
+    .from("profiles")
+    .select("id, slug, city, membership_tier, role, membership_state")
+    .eq("membership_state", "active")
+    .in("role", ["therapist", "admin"]);
+
+  const profiles = ((rawProfiles ?? []) as Array<Record<string, unknown>>).filter((profile) =>
+    viewerProfileId ? String(profile.id) !== viewerProfileId : true
+  );
+
+  if (profiles.length === 0) {
+    return [];
+  }
+
+  const profileIds = profiles.map((profile) => String(profile.id));
+  const { data: rawTherapistProfiles } = await admin
+    .from("therapist_profiles")
+    .select(
+      "id, profile_id, public_display_name, credentials, title, bio, specialties, insurance_accepted, therapy_style_tags, populations, neighborhoods, approach_summary, offers_in_person, offers_telehealth, availability_status, availability_updated_at, payment_model, public_email, public_phone, featured_links, offerings, headline"
+    )
+    .in("profile_id", profileIds);
+
+  const rows = (rawTherapistProfiles ?? []) as Array<Record<string, unknown>>;
+  const profileById = new Map(profiles.map((profile) => [String(profile.id), profile]));
+  const [{ therapistFields, profileFields }, trustedBy, followedProfileIds, curatedListTitles] = await Promise.all([
+    getSupplementalTherapistFields(
+      rows.map((row) => String(row.id)),
+      rows.map((row) => String(row.profile_id))
+    ),
+    getEndorserConnections(rows.map((row) => String(row.profile_id))),
+    getFollowedProfileIds(viewerProfileId),
+    getPublicCuratedListTitles(rows.map((row) => String(row.id)))
+  ]);
+
+  return rows
+    .map((row) => {
+      const profile = profileById.get(String(row.profile_id));
+
+      if (!profile) {
+        return null;
+      }
+
+      return mapTherapistSummary(
+        {
+          therapist_profile_id: row.id,
+          profile_id: row.profile_id,
+          slug: profile.slug,
+          city: profile.city ?? "Austin",
+          membership_tier: profile.membership_tier ?? "free",
+          public_endorsement_count: 0,
+          ...row,
+          ...therapistFields.get(String(row.id)),
+          ...profileFields.get(String(row.profile_id))
+        },
+        trustedBy,
+        followedProfileIds,
+        curatedListTitles,
+        viewerProfileId
+      );
+    })
+    .filter((therapist): therapist is PublicTherapistSummary => Boolean(therapist))
+    .sort((a, b) => {
+      const trustA = Number(Boolean(a.isFollowed || a.trustedByViewer));
+      const trustB = Number(Boolean(b.isFollowed || b.trustedByViewer));
+
+      if (trustA !== trustB) {
+        return trustB - trustA;
+      }
+
+      const availabilityRank = { accepting: 2, waitlist: 1, full: 0 } as const;
+      if (availabilityRank[a.availabilityStatus] !== availabilityRank[b.availabilityStatus]) {
+        return availabilityRank[b.availabilityStatus] - availabilityRank[a.availabilityStatus];
+      }
+
+      return b.trustedBy.length - a.trustedBy.length;
+    });
+}
+
 export async function getMemberFeedItems(profileId?: string) {
   const admin = createSupabaseAdminClient();
   const { data: rawPosts } = await admin
@@ -537,9 +623,9 @@ export async function getReferralLinksForMember(userId: string, sponsorName: str
     const inviteUrl = `${appUrl}/join/apply?code=${encodeURIComponent(code)}`;
     const emailInviteHref = invitedEmail
       ? `mailto:${encodeURIComponent(invitedEmail)}?subject=${encodeURIComponent(
-          "Invitation to join Trusted Therapist Collective"
+          "Invitation to join Austin Therapist Exchange"
         )}&body=${encodeURIComponent(
-          `Hi,\n\nI'd love to invite you to join Trusted Therapist Collective.\n\nUse this referral link to apply:\n${inviteUrl}\n\nIf the link does not prefill the code, use: ${code}\n\nBest,\n${sponsorName}`
+          `Hi,\n\nI'd love to invite you to join Austin Therapist Exchange.\n\nUse this referral link to apply:\n${inviteUrl}\n\nIf the link does not prefill the code, use: ${code}\n\nBest,\n${sponsorName}`
         )}`
       : undefined;
 
@@ -635,6 +721,114 @@ export async function sendReferralMessage(
     body: data.body,
     readAt: data.read_at ?? undefined,
     createdAt: data.created_at
+  };
+}
+
+export async function getDirectReferralActivity(profileId: string): Promise<DirectReferralActivitySummary> {
+  const admin = createSupabaseAdminClient();
+  const { data: rawReferrals, error } = await admin
+    .from("direct_referrals")
+    .select("id, sender_profile_id, receiver_profile_id, client_details, status, created_at, updated_at, message_id")
+    .or(`sender_profile_id.eq.${profileId},receiver_profile_id.eq.${profileId}`)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return {
+      sentCount: 0,
+      receivedCount: 0,
+      exchangedCount: 0,
+      incoming: [],
+      outgoing: []
+    };
+  }
+
+  const referrals = (rawReferrals ?? []) as Array<Record<string, unknown>>;
+  const messageIds = referrals
+    .map((referral) => (typeof referral.message_id === "string" ? referral.message_id : null))
+    .filter((value): value is string => Boolean(value));
+  const counterpartIds = [
+    ...new Set(
+      referrals.map((referral) =>
+        String(
+          String(referral.sender_profile_id) === profileId
+            ? referral.receiver_profile_id
+            : referral.sender_profile_id
+        )
+      )
+    )
+  ];
+
+  const { data: rawProfiles } = counterpartIds.length
+    ? await admin.from("profiles").select("id, full_name, slug").in("id", counterpartIds)
+    : { data: [] as unknown[] };
+  const { data: rawMessages } = messageIds.length
+    ? await admin.from("referral_messages").select("id, read_at").in("id", messageIds)
+    : { data: [] as unknown[] };
+
+  const profiles = new Map(
+    ((rawProfiles ?? []) as Array<Record<string, unknown>>).map((profile) => [
+      String(profile.id),
+      {
+        name: String(profile.full_name ?? "Clinician"),
+        slug: typeof profile.slug === "string" ? profile.slug : undefined
+      }
+    ])
+  );
+  const messages = new Map(
+    ((rawMessages ?? []) as Array<Record<string, unknown>>).map((message) => [
+      String(message.id),
+      typeof message.read_at === "string" ? message.read_at : undefined
+    ])
+  );
+
+  const incoming = referrals
+    .filter((referral) => String(referral.receiver_profile_id) === profileId)
+    .map((referral) => {
+      const details = (referral.client_details as Record<string, unknown> | null) ?? {};
+      const counterpart = profiles.get(String(referral.sender_profile_id));
+      return {
+        id: String(referral.id),
+        direction: "incoming" as const,
+        counterpartName: counterpart?.name ?? "Clinician",
+        counterpartSlug: counterpart?.slug,
+        title: String(details.title ?? "Referral"),
+        region: typeof details.regionWanted === "string" ? details.regionWanted : undefined,
+        paymentModel: typeof details.paymentWanted === "string" ? getPaymentModelLabel(details.paymentWanted) : undefined,
+        status: String(referral.status ?? "open") as FeedItem["status"],
+        readAt: typeof referral.message_id === "string" ? messages.get(referral.message_id) : undefined,
+        createdAtLabel: formatCreatedAtLabel(referral.created_at as string | null)
+      };
+    });
+
+  const outgoing = referrals
+    .filter((referral) => String(referral.sender_profile_id) === profileId)
+    .map((referral) => {
+      const details = (referral.client_details as Record<string, unknown> | null) ?? {};
+      const counterpart = profiles.get(String(referral.receiver_profile_id));
+      return {
+        id: String(referral.id),
+        direction: "outgoing" as const,
+        counterpartName: counterpart?.name ?? "Clinician",
+        counterpartSlug: counterpart?.slug,
+        title: String(details.title ?? "Referral"),
+        region: typeof details.regionWanted === "string" ? details.regionWanted : undefined,
+        paymentModel: typeof details.paymentWanted === "string" ? getPaymentModelLabel(details.paymentWanted) : undefined,
+        status: String(referral.status ?? "open") as FeedItem["status"],
+        readAt: typeof referral.message_id === "string" ? messages.get(referral.message_id) : undefined,
+        createdAtLabel: formatCreatedAtLabel(referral.created_at as string | null)
+      };
+    });
+
+  const sentTo = new Set(outgoing.map((item) => item.counterpartName));
+  const receivedFrom = new Set(incoming.map((item) => item.counterpartName));
+  const exchangedCount = [...sentTo].filter((name) => receivedFrom.has(name)).length;
+
+  return {
+    sentCount: outgoing.length,
+    receivedCount: incoming.length,
+    exchangedCount,
+    incoming,
+    outgoing
   };
 }
 

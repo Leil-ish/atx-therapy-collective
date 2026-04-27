@@ -16,6 +16,80 @@ export const AUSTIN_METRO_AREAS = [
   "Kyle"
 ] as const;
 
+const REGION_ALIASES: Record<(typeof AUSTIN_METRO_AREAS)[number], string[]> = {
+  "North Austin": [
+    "North Austin",
+    "Northwest Hills",
+    "Allandale",
+    "Crestview",
+    "Brentwood",
+    "North Burnet",
+    "Arboretum",
+    "Domain",
+    "Far North Austin",
+    "Wells Branch",
+    "Anderson Mill",
+    "Jollyville"
+  ],
+  "Central Austin": [
+    "Central Austin",
+    "Downtown",
+    "Clarksville",
+    "Hyde Park",
+    "Rosedale",
+    "Tarrytown",
+    "Mueller",
+    "North Loop",
+    "Hancock",
+    "Bouldin Creek",
+    "Zilker"
+  ],
+  "South Austin": [
+    "South Austin",
+    "South Congress",
+    "South Lamar",
+    "Travis Heights",
+    "Cherry Creek",
+    "Circle C",
+    "Southpark Meadows",
+    "Sunset Valley",
+    "Manchaca",
+    "Oak Hill"
+  ],
+  "East Austin": [
+    "East Austin",
+    "East Cesar Chavez",
+    "Holly",
+    "Govalle",
+    "Montopolis",
+    "Del Valle",
+    "Pecan Springs",
+    "MLK"
+  ],
+  "West Austin": [
+    "West Austin",
+    "Northwest Hills",
+    "Tarrytown",
+    "Westlake Hills",
+    "Rollingwood",
+    "Barton Creek",
+    "Steiner Ranch",
+    "Lake Travis",
+    "Bee Cave",
+    "Oak Hill"
+  ],
+  Westlake: ["Westlake", "West Lake Hills", "Westlake Hills", "Rollingwood"],
+  "Round Rock": ["Round Rock"],
+  "Cedar Park": ["Cedar Park"],
+  Georgetown: ["Georgetown"],
+  Pflugerville: ["Pflugerville"],
+  Leander: ["Leander"],
+  Lakeway: ["Lakeway"],
+  "Dripping Springs": ["Dripping Springs", "Belterra"],
+  Buda: ["Buda"],
+  Kyle: ["Kyle"]
+};
+
 export const PRESENTING_ISSUES = [
   "Anxiety",
   "Depression",
@@ -118,8 +192,14 @@ export function regionMatches(region: string, neighborhoods: string[], city?: st
     return true;
   }
 
+  const canonicalRegion = AUSTIN_METRO_AREAS.find((area) => normalizeForMatch(area) === normalizedRegion);
+  const aliases = canonicalRegion ? REGION_ALIASES[canonicalRegion] : [];
+  const searchTerms = [region, ...aliases].map(normalizeForMatch);
   const haystack = [...neighborhoods, city ?? ""].map(normalizeForMatch);
-  return haystack.some((item) => item.includes(normalizedRegion));
+
+  return haystack.some((item) =>
+    searchTerms.some((term) => item.includes(term) || term.includes(item))
+  );
 }
 
 export function countOverlappingTerms(selected: string[], candidate: string[]) {
@@ -132,4 +212,23 @@ export function countOverlappingTerms(selected: string[], candidate: string[]) {
     const normalizedTerm = normalizeForMatch(term);
     return count + (normalizedCandidate.some((item) => item.includes(normalizedTerm)) ? 1 : 0);
   }, 0);
+}
+
+export function paymentModelMatchesFilter(
+  therapistPaymentModel: "private_pay" | "insurance" | "both",
+  requestedPaymentModel?: string
+) {
+  if (!requestedPaymentModel) {
+    return true;
+  }
+
+  if (requestedPaymentModel === "both") {
+    return therapistPaymentModel === "both";
+  }
+
+  if (therapistPaymentModel === "both") {
+    return requestedPaymentModel === "private_pay" || requestedPaymentModel === "insurance";
+  }
+
+  return therapistPaymentModel === requestedPaymentModel;
 }

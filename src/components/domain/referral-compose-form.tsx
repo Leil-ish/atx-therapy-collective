@@ -1,405 +1,174 @@
 "use client";
 
-import { useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
-import { createMemberPost } from "@/app-actions/member-actions";
-import { sendReferralMessage } from "@/lib/data/live-data";
+import { sendDirectReferral } from "@/app-actions/member-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  AUSTIN_METRO_AREAS,
-  CLIENT_POPULATIONS,
-  INSURANCE_CARRIERS,
-  LEVELS_OF_CARE,
-  MODALITIES,
-  PRESENTING_ISSUES,
-  URGENCY_LEVELS,
-  countOverlappingTerms,
-  normalizeForMatch,
-  regionMatches
-} from "@/lib/referral-matching";
+import { AUSTIN_METRO_AREAS, normalizeForMatch, paymentModelMatchesFilter, regionMatches } from "@/lib/referral-matching";
 import type { PublicTherapistSummary } from "@/types";
-
-type PreferenceStrength = "dealbreaker" | "nice_to_have";
 
 function getPaymentModelLabel(value: string) {
   if (value === "private_pay") return "Private pay";
   if (value === "insurance") return "Insurance";
-  return "Private pay + insurance";
+  return "Private pay and insurance";
 }
 
-function getTypeLabel(type: string) {
-  if (type === "consultation_request") return "Consultation request";
-  if (type === "job") return "Job opening";
-  return "Referral request";
+function getCareFormatLabel(therapist: PublicTherapistSummary) {
+  if (therapist.inPerson && therapist.telehealth) {
+    return "In person and telehealth";
+  }
+
+  if (therapist.telehealth) {
+    return "Telehealth";
+  }
+
+  return "In person";
 }
 
-function parseCsv(value: FormDataEntryValue | null) {
-  return String(value ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
+function getTrustContext(therapist: PublicTherapistSummary) {
+  if (therapist.trustedByViewer) {
+    return "Trusted by you";
+  }
+
+  if (therapist.isFollowed) {
+    return "In your network";
+  }
+
+  if (therapist.trustedBy.length === 1) {
+    return `Trusted by ${therapist.trustedBy[0]?.name}`;
+  }
+
+  if (therapist.trustedBy.length > 1) {
+    return `Trusted by ${therapist.trustedBy[0]?.name} and ${therapist.trustedBy.length - 1} others`;
+  }
+
+  return "No direct trust context yet";
 }
 
-function buildStructuredLines(formData: FormData) {
-  const lines = [
-    buildPreferenceLine("Region", String(formData.get("regionWanted") ?? ""), String(formData.get("regionPreference") ?? "")),
-    buildPreferenceLine(
-      "Presenting issues",
-      parseCsv(formData.get("presentingIssues")).join(", "),
-      String(formData.get("presentingIssuesPreference") ?? "")
-    ),
-    buildPreferenceLine(
-      "Client type / population",
-      parseCsv(formData.get("populationsWanted")).join(", "),
-      String(formData.get("populationsPreference") ?? "")
-    ),
-    buildPreferenceLine(
-      "Modality",
-      parseCsv(formData.get("modalitiesWanted")).join(", "),
-      String(formData.get("modalitiesPreference") ?? "")
-    ),
-    buildPreferenceLine(
-      "Insurance",
-      parseCsv(formData.get("insuranceWanted")).join(", "),
-      String(formData.get("insurancePreference") ?? "")
-    ),
-    buildPreferenceLine("Payment model", String(formData.get("paymentWanted") ?? ""), String(formData.get("paymentPreference") ?? "")),
-    buildPreferenceLine("Care format", String(formData.get("formatWanted") ?? ""), String(formData.get("formatPreference") ?? "")),
-    optionalLine("Level of care", String(formData.get("levelOfCare") ?? "")),
-    optionalLine("Urgency", String(formData.get("urgencyLevel") ?? ""))
-  ].filter(Boolean);
-
-  return lines as string[];
-}
-
-function optionalLine(label: string, value: string) {
-  return value.trim() ? `${label}: ${value.trim()}` : null;
-}
-
-function buildPreferenceLine(label: string, value: string, preference: string) {
-  const cleaned = value.trim();
-  if (!cleaned) return null;
-
-  const suffix = preference === "dealbreaker" ? " (dealbreaker)" : preference === "nice_to_have" ? " (nice-to-have)" : "";
-  return `${label}: ${cleaned}${suffix}`;
-}
-
-function buildMailtoHref(formData: FormData, senderEmail?: string) {
-  const type = String(formData.get("type") ?? "referral_request").trim();
-  const title = String(formData.get("title") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
-  const directEmail = String(formData.get("directEmail") ?? "").trim().replace(/\s+/g, "");
-  const structuredLines = buildStructuredLines(formData);
-
-  const lines = [
-    getTypeLabel(type),
-    "",
-    `Summary: ${title}`,
-    ...structuredLines,
-    "",
-    "Details:",
-    body,
-    "",
-    senderEmail ? `Reply to: ${senderEmail}` : null
-  ].filter(Boolean);
-
-  return `mailto:${directEmail}?subject=${encodeURIComponent(
-    `${getTypeLabel(type)}: ${title}`
-  )}&body=${encodeURIComponent(lines.join("\n"))}`;
-}
-
-function toggleValue(values: string[], value: string) {
-  return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
-}
-
-function PreferenceSelect({
-  name,
-  value,
-  onChange
-}: {
-  name: string;
-  value: PreferenceStrength;
-  onChange: (value: PreferenceStrength) => void;
-}) {
-  return (
-    <>
-      <select
-        className="rounded-xl border bg-white px-3 py-2 text-sm"
-        name={name}
-        onChange={(event) => onChange(event.target.value as PreferenceStrength)}
-        value={value}
-      >
-        <option value="dealbreaker">Dealbreaker</option>
-        <option value="nice_to_have">Nice-to-have</option>
-      </select>
-    </>
-  );
-}
-
-function MultiSelectChips({
-  label,
-  name,
-  options,
-  selected,
-  onToggle,
-  preferenceName,
-  preference,
-  onPreferenceChange
-}: {
-  label: string;
-  name: string;
-  options: readonly string[];
-  selected: string[];
-  onToggle: (value: string) => void;
-  preferenceName: string;
-  preference: PreferenceStrength;
-  onPreferenceChange: (value: PreferenceStrength) => void;
-}) {
-  return (
-    <div className="space-y-3 rounded-2xl border bg-background p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <PreferenceSelect name={preferenceName} onChange={onPreferenceChange} value={preference} />
-      </div>
-      <input name={name} type="hidden" value={selected.join(",")} />
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
-          const active = selected.includes(option);
-          return (
-            <button
-              className={`rounded-xl border px-3 py-2 text-sm ${active ? "border-primary bg-primary text-primary-foreground" : "bg-white text-muted-foreground"}`}
-              key={option}
-              onClick={(event) => {
-                event.preventDefault();
-                onToggle(option);
-              }}
-              type="button"
-            >
-              {option}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+function getAvailabilityRank(status: PublicTherapistSummary["availabilityStatus"]) {
+  if (status === "accepting") return 3;
+  if (status === "waitlist") return 2;
+  return 1;
 }
 
 export function ReferralComposeForm({
   senderEmail,
   statusCopy,
-  therapists,
-  currentUserId
+  therapists
 }: {
   senderEmail?: string;
   statusCopy?: string | null;
   therapists: PublicTherapistSummary[];
-  currentUserId?: string;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const [, setFormVersion] = useState(0);
-
+  const [title, setTitle] = useState("");
+  const [clientNeed, setClientNeed] = useState("");
+  const [body, setBody] = useState("");
   const [regionWanted, setRegionWanted] = useState("");
-  const [regionPreference, setRegionPreference] = useState<PreferenceStrength>("dealbreaker");
   const [paymentWanted, setPaymentWanted] = useState("");
-  const [paymentPreference, setPaymentPreference] = useState<PreferenceStrength>("dealbreaker");
   const [formatWanted, setFormatWanted] = useState("");
-  const [formatPreference, setFormatPreference] = useState<PreferenceStrength>("dealbreaker");
-  const [presentingIssues, setPresentingIssues] = useState<string[]>([]);
-  const [presentingIssuesPreference, setPresentingIssuesPreference] = useState<PreferenceStrength>("dealbreaker");
-  const [populationsWanted, setPopulationsWanted] = useState<string[]>([]);
-  const [populationsPreference, setPopulationsPreference] = useState<PreferenceStrength>("dealbreaker");
-  const [modalitiesWanted, setModalitiesWanted] = useState<string[]>([]);
-  const [modalitiesPreference, setModalitiesPreference] = useState<PreferenceStrength>("nice_to_have");
-  const [insuranceWanted, setInsuranceWanted] = useState<string[]>([]);
-  const [insurancePreference, setInsurancePreference] = useState<PreferenceStrength>("nice_to_have");
-  const [messageType, setMessageType] = useState<"email" | "internal">("email");
+  const [selectedProfileId, setSelectedProfileId] = useState("");
 
-  const form = formRef.current ? new FormData(formRef.current) : null;
-  const title = normalizeForMatch(String(form?.get("title") ?? ""));
-  const body = normalizeForMatch(String(form?.get("body") ?? ""));
-  const summaryText = [title, body].filter(Boolean).join(" ");
+  const queryText = normalizeForMatch([title, clientNeed, body].join(" "));
 
   const matchedTherapists = therapists
+    .filter((therapist) => (regionWanted ? regionMatches(regionWanted, therapist.neighborhoods, therapist.city) : true))
+    .filter((therapist) => paymentModelMatchesFilter(therapist.paymentModel, paymentWanted))
+    .filter((therapist) => {
+      if (!formatWanted) return true;
+      if (formatWanted === "telehealth") return therapist.telehealth;
+      if (formatWanted === "in_person") return therapist.inPerson;
+      return therapist.inPerson && therapist.telehealth;
+    })
     .map((therapist) => {
       const searchable = normalizeForMatch(
         [
           therapist.displayName,
           therapist.title,
-          therapist.bio,
-          therapist.approachSummary,
           therapist.specialties.join(" "),
           therapist.populations.join(" "),
-          therapist.therapyStyleTags.join(" "),
-          therapist.neighborhoods.join(" "),
-          therapist.insuranceAccepted.join(" ")
+          therapist.approachSummary,
+          therapist.neighborhoods.join(" ")
         ].join(" ")
       );
 
-      const keywordScore = summaryText
-        ? summaryText
-            .split(/\s+/)
-            .filter((word) => word.length > 2)
-            .reduce((score, word) => score + (searchable.includes(word) ? 1 : 0), 0)
-        : 0;
+      const keywordMatches = queryText
+        .split(/\s+/)
+        .filter((word) => word.length > 2)
+        .reduce((score, word) => score + (searchable.includes(word) ? 1 : 0), 0);
 
-      const issueOverlap = countOverlappingTerms(presentingIssues, therapist.specialties);
-      const populationOverlap = countOverlappingTerms(populationsWanted, therapist.populations);
-      const modalityOverlap = countOverlappingTerms(modalitiesWanted, therapist.therapyStyleTags);
-      const insuranceOverlap = countOverlappingTerms(insuranceWanted, therapist.insuranceAccepted);
-      const matchesRegion = regionWanted ? regionMatches(regionWanted, therapist.neighborhoods, therapist.city) : true;
-      const matchesPayment = paymentWanted ? therapist.paymentModel === paymentWanted : true;
-      const matchesFormat =
-        !formatWanted ||
-        (formatWanted === "telehealth" && therapist.telehealth) ||
-        (formatWanted === "in_person" && therapist.inPerson) ||
-        (formatWanted === "both" && therapist.inPerson && therapist.telehealth);
+      const trustScore =
+        Number(Boolean(therapist.trustedByViewer)) * 8 +
+        Number(Boolean(therapist.isFollowed)) * 5 +
+        Math.min(therapist.trustedBy.length, 3) * 2;
 
       return {
         therapist,
-        keywordScore,
-        issueOverlap,
-        populationOverlap,
-        modalityOverlap,
-        insuranceOverlap,
-        matchesRegion,
-        matchesPayment,
-        matchesFormat
+        score: keywordMatches + trustScore + getAvailabilityRank(therapist.availabilityStatus)
       };
     })
-    .filter((match) => {
-      if (regionWanted && regionPreference === "dealbreaker" && !match.matchesRegion) return false;
-      if (paymentWanted && paymentPreference === "dealbreaker" && !match.matchesPayment) return false;
-      if (formatWanted && formatPreference === "dealbreaker" && !match.matchesFormat) return false;
-      if (presentingIssues.length > 0 && presentingIssuesPreference === "dealbreaker" && match.issueOverlap === 0) return false;
-      if (populationsWanted.length > 0 && populationsPreference === "dealbreaker" && match.populationOverlap === 0) return false;
-      if (modalitiesWanted.length > 0 && modalitiesPreference === "dealbreaker" && match.modalityOverlap === 0) return false;
-      if (insuranceWanted.length > 0 && insurancePreference === "dealbreaker" && match.insuranceOverlap === 0) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      const trustA = Number(Boolean(a.therapist.isFollowed || a.therapist.trustedByViewer));
-      const trustB = Number(Boolean(b.therapist.isFollowed || b.therapist.trustedByViewer));
-      if (trustA !== trustB) return trustB - trustA;
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 
-      const scoreA =
-        a.keywordScore +
-        a.issueOverlap * 4 +
-        a.populationOverlap * 3 +
-        a.modalityOverlap * 2 +
-        a.insuranceOverlap * 2 +
-        Number(a.matchesRegion && regionPreference === "nice_to_have") * 2 +
-        Number(a.matchesPayment && paymentPreference === "nice_to_have") * 2 +
-        Number(a.matchesFormat && formatPreference === "nice_to_have") * 2;
-
-      const scoreB =
-        b.keywordScore +
-        b.issueOverlap * 4 +
-        b.populationOverlap * 3 +
-        b.modalityOverlap * 2 +
-        b.insuranceOverlap * 2 +
-        Number(b.matchesRegion && regionPreference === "nice_to_have") * 2 +
-        Number(b.matchesPayment && paymentPreference === "nice_to_have") * 2 +
-        Number(b.matchesFormat && formatPreference === "nice_to_have") * 2;
-
-      if (scoreA !== scoreB) return scoreB - scoreA;
-
-      const availabilityRank = { accepting: 2, waitlist: 1, full: 0 } as const;
-      if (availabilityRank[a.therapist.availabilityStatus] !== availabilityRank[b.therapist.availabilityStatus]) {
-        return availabilityRank[b.therapist.availabilityStatus] - availabilityRank[a.therapist.availabilityStatus];
-      }
-
-      return b.therapist.endorsementCount - a.therapist.endorsementCount;
-    })
-    .slice(0, 10);
-
-  async function handleSendMessage(receiverProfileId: string, receiverEmail?: string) {
-    const formElement = formRef.current;
-    if (!formElement) return;
-
-    const formData = new FormData(formElement);
-    const currentTitle = String(formData.get("title") ?? "").trim();
-    const currentBody = String(formData.get("body") ?? "").trim();
-
-    if (!currentTitle || !currentBody) {
-      setDraftError("Add a referral summary and details before sending a message.");
-      return;
+  useEffect(() => {
+    if (!matchedTherapists.some((match) => match.therapist.profileId === selectedProfileId)) {
+      setSelectedProfileId(matchedTherapists[0]?.therapist.profileId ?? "");
     }
+  }, [matchedTherapists, selectedProfileId]);
 
-    setDraftError(null);
-
-    if (messageType === "email" && receiverEmail) {
-      formData.set("directEmail", receiverEmail);
-      window.location.href = buildMailtoHref(formData, senderEmail);
-    } else if (messageType === "internal") {
-      if (currentUserId) {
-        const messageBody = JSON.stringify({ title: currentTitle, body: currentBody, structuredLines: buildStructuredLines(formData) });
-        const sentMessage = await sendReferralMessage(
-          currentUserId,
-          receiverProfileId,
-          messageBody,
-          // TODO: Potentially link to a referral request if this is tied to one. For now, it's a direct message.
-        );
-        if (sentMessage) {
-          alert("Internal message sent successfully!");
-        } else {
-          setDraftError("Failed to send internal message.");
-        }
-      } else {
-        setDraftError("User not logged in to send internal message.");
-      }
-    }
-  }
+  const selectedTherapist = matchedTherapists.find((match) => match.therapist.profileId === selectedProfileId)?.therapist;
 
   return (
-    <form action={createMemberPost} className="space-y-6" onChange={() => setFormVersion((value) => value + 1)} ref={formRef}>
-      {statusCopy ? <div className="rounded-2xl border bg-background p-4 text-sm leading-7 text-muted-foreground">{statusCopy}</div> : null}
-      {draftError ? <div className="rounded-2xl border bg-background p-4 text-sm leading-7 text-muted-foreground">{draftError}</div> : null}
+    <form action={sendDirectReferral} className="space-y-6">
+      {statusCopy ? <div className="rounded-2xl border bg-background p-4 text-sm text-muted-foreground">{statusCopy}</div> : null}
 
-      <div className="grid gap-4 rounded-2xl border bg-background p-4 md:grid-cols-2">
-        <select className="w-full rounded-2xl border bg-white px-4 py-3 text-sm" defaultValue="referral_request" name="type">
-          <option value="referral_request">Referral request</option>
-          <option value="consultation_request">Consultation request</option>
-          <option value="job">Job opening</option>
-        </select>
-        <select className="w-full rounded-2xl border bg-white px-4 py-3 text-sm" name="levelOfCare">
-          <option value="">Any level of care</option>
-          {LEVELS_OF_CARE.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <input className="w-full rounded-2xl border bg-white px-4 py-3 text-sm md:col-span-2" name="title" placeholder="Title or short summary" />
-        <select className="w-full rounded-2xl border bg-white px-4 py-3 text-sm" name="urgencyLevel">
-          <option value="">Urgency</option>
-          {URGENCY_LEVELS.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        <textarea
-          className="min-h-36 w-full rounded-2xl border bg-white px-4 py-3 text-sm md:col-span-2"
-          name="body"
-          placeholder="Referral details, goals, clinical context, and anything that affects fit."
-        />
-      </div>
+      <input name="returnTo" type="hidden" value="/member/referrals" />
+      <input name="type" type="hidden" value="referral_request" />
+      <input name="receiverProfileId" type="hidden" value={selectedProfileId} />
+      <input name="presentingIssues" type="hidden" value={clientNeed} />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-3 rounded-2xl border bg-background p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-foreground">Region</p>
-            <PreferenceSelect name="regionPreference" onChange={setRegionPreference} value={regionPreference} />
-          </div>
-          <input name="regionWanted" type="hidden" value={regionWanted} />
+      <div className="grid gap-4 rounded-2xl border bg-background p-5 md:grid-cols-2">
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-medium text-foreground" htmlFor="title">
+            Referral summary
+          </label>
+          <input
+            className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+            id="title"
+            name="title"
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Adult client needing trauma-informed therapist"
+            required
+            value={title}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground" htmlFor="clientNeed">
+            Main need
+          </label>
+          <input
+            className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+            id="clientNeed"
+            onChange={(event) => setClientNeed(event.target.value)}
+            placeholder="Trauma, couples, teen anxiety, postpartum"
+            value={clientNeed}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground" htmlFor="regionWanted">
+            Location
+          </label>
           <select
             className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+            id="regionWanted"
+            name="regionWanted"
             onChange={(event) => setRegionWanted(event.target.value)}
             value={regionWanted}
           >
-            <option value="">All Austin metro areas</option>
+            <option value="">Any Austin area</option>
             {AUSTIN_METRO_AREAS.map((area) => (
               <option key={area} value={area}>
                 {area}
@@ -408,171 +177,139 @@ export function ReferralComposeForm({
           </select>
         </div>
 
-        <div className="space-y-3 rounded-2xl border bg-background p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-foreground">Payment model</p>
-            <PreferenceSelect name="paymentPreference" onChange={setPaymentPreference} value={paymentPreference} />
-          </div>
-          <input name="paymentWanted" type="hidden" value={paymentWanted} />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground" htmlFor="formatWanted">
+            Format
+          </label>
           <select
             className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
-            onChange={(event) => setPaymentWanted(event.target.value)}
-            value={paymentWanted}
-          >
-            <option value="">Any payment model</option>
-            <option value="private_pay">Private pay</option>
-            <option value="insurance">Insurance</option>
-            <option value="both">Private pay + insurance</option>
-          </select>
-        </div>
-
-        <div className="space-y-3 rounded-2xl border bg-background p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-foreground">Care format</p>
-            <PreferenceSelect name="formatPreference" onChange={setFormatPreference} value={formatPreference} />
-          </div>
-          <input name="formatWanted" type="hidden" value={formatWanted} />
-          <select
-            className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+            id="formatWanted"
+            name="formatWanted"
             onChange={(event) => setFormatWanted(event.target.value)}
             value={formatWanted}
           >
-            <option value="">Any care format</option>
+            <option value="">Any format</option>
             <option value="telehealth">Telehealth</option>
             <option value="in_person">In person</option>
-            <option value="both">Both</option>
+            <option value="both">Needs both</option>
           </select>
         </div>
-      </div>
 
-      <MultiSelectChips
-        label="Presenting issues"
-        name="presentingIssues"
-        onPreferenceChange={setPresentingIssuesPreference}
-        onToggle={(value) => setPresentingIssues((items) => toggleValue(items, value))}
-        options={PRESENTING_ISSUES}
-        preference={presentingIssuesPreference}
-        preferenceName="presentingIssuesPreference"
-        selected={presentingIssues}
-      />
-      <MultiSelectChips
-        label="Client type / population"
-        name="populationsWanted"
-        onPreferenceChange={setPopulationsPreference}
-        onToggle={(value) => setPopulationsWanted((items) => toggleValue(items, value))}
-        options={CLIENT_POPULATIONS}
-        preference={populationsPreference}
-        preferenceName="populationsPreference"
-        selected={populationsWanted}
-      />
-      <MultiSelectChips
-        label="Treatment style or modality"
-        name="modalitiesWanted"
-        onPreferenceChange={setModalitiesPreference}
-        onToggle={(value) => setModalitiesWanted((items) => toggleValue(items, value))}
-        options={MODALITIES}
-        preference={modalitiesPreference}
-        preferenceName="modalitiesPreference"
-        selected={modalitiesWanted}
-      />
-      <MultiSelectChips
-        label="Insurance carriers"
-        name="insuranceWanted"
-        onPreferenceChange={setInsurancePreference}
-        onToggle={(value) => setInsuranceWanted((items) => toggleValue(items, value))}
-        options={INSURANCE_CARRIERS}
-        preference={insurancePreference}
-        preferenceName="insurancePreference"
-        selected={insuranceWanted}
-      />
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-foreground" htmlFor="paymentWanted">
+            Payment
+          </label>
+          <select
+            className="w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+            id="paymentWanted"
+            name="paymentWanted"
+            onChange={(event) => setPaymentWanted(event.target.value)}
+            value={paymentWanted}
+          >
+            <option value="">Any payment</option>
+            <option value="private_pay">Private pay</option>
+            <option value="insurance">Insurance</option>
+            <option value="both">Private pay and insurance</option>
+          </select>
+        </div>
 
-      <div className="space-y-4 rounded-2xl border bg-background p-4">
-        <div className="space-y-1">
-          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Send as</p>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="messageType"
-                value="email"
-                checked={messageType === "email"}
-                onChange={() => setMessageType("email")}
-              />
-              Email
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="messageType"
-                value="internal"
-                checked={messageType === "internal"}
-                onChange={() => setMessageType("internal")}
-              />
-              Internal Message
-            </label>
-          </div>
+        <div className="space-y-2 md:col-span-2">
+          <label className="text-sm font-medium text-foreground" htmlFor="body">
+            Referral details
+          </label>
+          <textarea
+            className="min-h-32 w-full rounded-2xl border bg-white px-4 py-3 text-sm"
+            id="body"
+            name="body"
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="Share the details a receiving therapist needs to know."
+            required
+            value={body}
+          />
+          <p className="text-sm text-muted-foreground">
+            We rank trusted matches first, then fit and availability.
+            {senderEmail ? ` Replies can come back to ${senderEmail}.` : ""}
+          </p>
         </div>
       </div>
 
-      <div className="space-y-4 rounded-2xl border bg-background p-4">
+      <div className="space-y-4 rounded-2xl border bg-background p-5">
         <div className="space-y-1">
-          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Top matches</p>
-          <p className="text-sm text-muted-foreground">Trusted clinicians rank first, then fit, availability, and endorsement strength. Email happens from a specific match.</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Best matches</p>
+          <p className="text-sm text-muted-foreground">Choose one therapist to send this referral to now.</p>
         </div>
 
         {matchedTherapists.length > 0 ? (
           <div className="grid gap-4">
-            {matchedTherapists.map(({ therapist, issueOverlap, populationOverlap, modalityOverlap, insuranceOverlap }) => (
-              <div className="rounded-2xl border bg-white p-4" key={therapist.profileId}>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <p className="font-serif text-2xl text-foreground">{therapist.displayName}</p>
-                    <p className="text-sm text-muted-foreground">{therapist.title}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {therapist.trustedByViewer ? <Badge variant="outline">Trusted by you</Badge> : null}
-                      {therapist.isFollowed ? <Badge variant="outline">Following</Badge> : null}
-                      <Badge>{therapist.neighborhoods[0] ?? therapist.city}</Badge>
-                      <Badge variant="outline">{getPaymentModelLabel(therapist.paymentModel)}</Badge>
+            {matchedTherapists.map(({ therapist }) => {
+              const checked = therapist.profileId === selectedProfileId;
+
+              return (
+                <label
+                  className={`block rounded-2xl border p-4 ${checked ? "border-primary bg-white" : "bg-white/80"}`}
+                  key={therapist.profileId}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="space-y-2">
+                      <div>
+                        <p className="font-medium text-foreground">{therapist.displayName}</p>
+                        <p className="text-sm text-muted-foreground">{therapist.title}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge>
+                          {therapist.availabilityStatus === "accepting"
+                            ? "Accepting referrals"
+                            : therapist.availabilityStatus === "waitlist"
+                              ? "Limited openings"
+                              : "Not accepting referrals"}
+                        </Badge>
+                        <Badge variant="outline">{therapist.neighborhoods[0] ?? therapist.city}</Badge>
+                      </div>
                     </div>
+
+                    <input
+                      checked={checked}
+                      className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
+                      onChange={() => setSelectedProfileId(therapist.profileId)}
+                      type="radio"
+                    />
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {therapist.publicEmail ? (
-                      <Button onClick={() => emailMatchedTherapist(therapist.publicEmail!)} type="button">
-                        Email match
-                      </Button>
-                    ) : null}
-                    <Button asChild type="button" variant="outline">
-                      <a href={`/directory/${therapist.slug}`}>View profile</a>
-                    </Button>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {therapist.specialties.slice(0, 3).map((specialty) => (
+                      <Badge key={specialty} variant="muted">
+                        {specialty}
+                      </Badge>
+                    ))}
                   </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {therapist.specialties.slice(0, 5).map((specialty) => (
-                    <Badge key={specialty} variant="muted">
-                      {specialty}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {issueOverlap > 0 ? <Badge variant="outline">{issueOverlap} issue match</Badge> : null}
-                  {populationOverlap > 0 ? <Badge variant="outline">{populationOverlap} population match</Badge> : null}
-                  {modalityOverlap > 0 ? <Badge variant="outline">{modalityOverlap} modality match</Badge> : null}
-                  {insuranceOverlap > 0 ? <Badge variant="outline">{insuranceOverlap} insurance match</Badge> : null}
-                </div>
-              </div>
-            ))}
+
+                  <div className="mt-4 grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                    <p>{getCareFormatLabel(therapist)}</p>
+                    <p>{getPaymentModelLabel(therapist.paymentModel)}</p>
+                    <p className="md:col-span-2">{getTrustContext(therapist)}</p>
+                  </div>
+
+                  <div className="mt-4">
+                    <Link className="text-sm font-medium text-primary hover:text-primary/80" href={`/directory/${therapist.slug}`}>
+                      View profile
+                    </Link>
+                  </div>
+                </label>
+              );
+            })}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Choose criteria to narrow the list. Dealbreakers filter. Nice-to-haves rank.</p>
+          <div className="rounded-2xl border bg-white p-4 text-sm text-muted-foreground">
+            No therapists match those details yet. Broaden a filter or open the directory to keep scanning.
+          </div>
         )}
       </div>
 
-      <div className="space-y-3 rounded-2xl border bg-background p-4">
-        <p className="text-sm font-medium text-foreground">No good fit here?</p>
-        <p className="text-sm text-muted-foreground">Post the referral to the network instead and let members respond.</p>
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" variant="outline">Post to network instead</Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white/90 p-5">
+        <p className="text-sm text-muted-foreground">After you send it, the referral status will appear below as pending, viewed, or responded.</p>
+        <Button disabled={!selectedTherapist} type="submit">
+          {selectedTherapist ? `Send referral to ${selectedTherapist.displayName}` : "Choose a match"}
+        </Button>
       </div>
     </form>
   );

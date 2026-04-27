@@ -1,9 +1,9 @@
-# ATX Therapy Collective
+# Austin Therapist Exchange
 
-ATX Therapy Collective is an MVP for an invite-only Austin therapist network with:
+Austin Therapist Exchange is an MVP for a private Austin therapist referral network with:
 - a public directory
 - public therapist profiles and groups
-- a private member workspace for referrals, consultations, jobs, groups, and trusted-by endorsements
+- a private member workspace for directory, referrals, network, and admin operations
 
 The project is intentionally small and companion-code friendly. The goal is a clean App Router foundation that can ship quickly and evolve without a lot of framework churn.
 
@@ -12,7 +12,7 @@ The project is intentionally small and companion-code friendly. The goal is a cl
 - Therapists do not freely self-serve into full membership.
 - New therapist onboarding is referral-link only for MVP.
 - Trusted active therapists can issue referral links.
-- The core v1 behavior is: before posting in a Facebook group, check the Collective.
+- The core v1 behavior is: before posting in a Facebook group or listserv, check Austin Therapist Exchange.
 - Clients and the public can browse the directory and public group/profile surfaces without logging in.
 - Private community features are limited to active therapist members.
 
@@ -134,7 +134,7 @@ Bootstrap defaults:
 - `therapist_profiles.is_public = false`
 
 Why this matters:
-- A therapist can authenticate successfully before being fully active in the collective.
+- A therapist can authenticate successfully before being fully active in Austin Therapist Exchange.
 - The app can safely create the base rows it needs without granting member access automatically.
 - Admin approval or your invitation workflow can still promote the therapist to `active` later.
 
@@ -184,12 +184,13 @@ Important behavior:
 
 - This scaffold stays server-component friendly and avoids Node-only runtime assumptions.
 - This repo is now set up for Cloudflare Workers using OpenNext via [open-next.config.ts](/Users/leilaanderson/Documents/atx-therapy-collective/open-next.config.ts) and [wrangler.jsonc](/Users/leilaanderson/Documents/atx-therapy-collective/wrangler.jsonc).
-- The current Wrangler config targets Cloudflare account `70b02f5e4f717f3928d82b4d7d0d31c4` and deploys to a default `workers.dev` hostname until you choose a custom domain.
+- The current Wrangler config targets Cloudflare account `70b02f5e4f717f3928d82b4d7d0d31c4` and is configured for `austintherapistexchange.com`.
+- Use Node `22.17.0` for Cloudflare builds and local deploys. This repo pins that version in [.nvmrc](/Users/leilaanderson/Documents/atx-therapy-collective/.nvmrc) and [.node-version](/Users/leilaanderson/Documents/atx-therapy-collective/.node-version).
 - Use `npm run preview` to run the OpenNext Worker locally and `npm run deploy` to deploy.
 - Keep `SUPABASE_SERVICE_ROLE_KEY` as a Cloudflare secret, not a public variable.
 
-Current deployed URL:
-- [https://atx-therapy-collective.paper-archon.workers.dev](https://atx-therapy-collective.paper-archon.workers.dev)
+Primary production URL:
+- [https://austintherapistexchange.com](https://austintherapistexchange.com)
 
 Deploy flow:
 ```bash
@@ -198,14 +199,31 @@ npm run deploy
 
 Set the Cloudflare secret once with:
 ```bash
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config ./wrangler.jsonc --name atx-therapy-collective
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config ./wrangler.jsonc --name austin-therapist-exchange
 ```
+
+### Workers Builds settings
+
+For Cloudflare Git-based builds, use:
+
+- Build command: `npm run cf:build`
+- Deploy command: `npm run cf:deploy`
+- Non-production branch deploy command: `npm run cf:upload`
+- Root directory: `/`
+
+Recommended:
+
+- Production branch: `main`
+- Non-production branch builds: enabled
+- Build cache: enabled
+
+This matches Cloudflare's two-step build/deploy model and avoids re-running the full OpenNext build inside the deploy step.
 
 ## TODO next
 
 - Replace mock data with server-side Supabase queries and server actions.
 - Add proper form feedback states with `useActionState` once the insert flows are real.
-- Add a custom domain route in `wrangler.jsonc` once the production hostname is chosen.
+- Confirm the custom domain is active in Cloudflare and Supabase auth settings.
 - Replace placeholder join-request and invitation server actions with real Supabase writes.
 - Add an admin UI for promoting `pending` therapists to `active`.
 - Add lightweight availability check-ins and member-side decline/close actions for referral requests.

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 
 import { followClinician, unfollowClinician } from "@/app-actions/member-actions";
 import { getSession } from "@/lib/auth/session";
@@ -41,18 +42,16 @@ export default async function TherapistProfilePage({
           <CardContent className="space-y-6">
             {session?.userId && session.userId !== therapist.profileId ? (
               <div className="flex flex-wrap gap-3">
+                <Button asChild>
+                  <Link href="/member/referrals">Make a referral</Link>
+                </Button>
                 <form action={therapist.isFollowed ? unfollowClinician : followClinician}>
                   <input name="followedProfileId" type="hidden" value={therapist.profileId} />
                   <input name="returnTo" type="hidden" value={`/directory/${therapist.slug}`} />
-                  <Button type="submit" variant={therapist.isFollowed ? "outline" : "default"}>
-                    {therapist.isFollowed ? "Prioritized in matches" : "Prioritize in matches"}
+                  <Button type="submit" variant="outline">
+                    {therapist.isFollowed ? "Saved" : "Save"}
                   </Button>
                 </form>
-                <Button asChild variant="outline">
-                  <a href={`/member/endorsements?endorsedProfileId=${encodeURIComponent(therapist.profileId)}`}>
-                    Mark trusted
-                  </a>
-                </Button>
                 {therapist.publicEmail ? (
                   <Button asChild variant="outline">
                     <a href={`mailto:${therapist.publicEmail}?subject=${encodeURIComponent(`Referral inquiry for ${therapist.displayName}`)}`}>
@@ -63,7 +62,7 @@ export default async function TherapistProfilePage({
               </div>
             ) : null}
             {session?.userId && session.userId !== therapist.profileId ? (
-              <p className="text-sm text-muted-foreground">Prioritized clinicians rank higher in your matches and referral feed.</p>
+              <p className="text-sm text-muted-foreground">Save therapists you want to keep close by for future referrals.</p>
             ) : null}
             <p className="leading-7 text-muted-foreground">{therapist.bio}</p>
             {therapist.offerings.length > 0 ? (
@@ -138,10 +137,11 @@ export default async function TherapistProfilePage({
 
         <Card className="bg-white/90">
           <CardHeader>
-            <CardTitle>Trust context</CardTitle>
+            <CardTitle>Colleague referrals</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-7 text-muted-foreground">
-            <p>{therapist.endorsementCount} public endorsements.</p>
+            {therapist.trustedByViewer ? <p>You have already saved this therapist.</p> : null}
+            <p>{therapist.endorsementCount} colleague referral{therapist.endorsementCount === 1 ? "" : "s"} on record.</p>
             {therapist.sponsorName ? <p>Joined through {therapist.sponsorName}.</p> : null}
             <div className="flex flex-wrap gap-2">
               {therapist.trustedBy.map((connection) => (
@@ -150,18 +150,7 @@ export default async function TherapistProfilePage({
                 </Badge>
               ))}
             </div>
-            {therapist.curatedListTitles.length > 0 ? (
-              <div className="space-y-2">
-                <p className="font-medium text-foreground">Included in curated trust rosters</p>
-                <div className="flex flex-wrap gap-2">
-                  {therapist.curatedListTitles.map((title) => (
-                    <Badge key={title} variant="outline">
-                      {title}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+            {therapist.trustedBy.length === 0 ? <p>No colleague names are listed here yet.</p> : null}
           </CardContent>
         </Card>
       </section>

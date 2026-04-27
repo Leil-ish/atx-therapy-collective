@@ -49,15 +49,15 @@ export default async function DirectoryPage({
       <section className="mx-auto max-w-6xl space-y-8 px-6 py-16">
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Directory</p>
-          <h1 className="font-serif text-5xl leading-tight text-foreground">Therapist Directory</h1>
-          <p className="text-base text-muted-foreground">Search by fit, availability, payment, and care format.</p>
+          <h1 className="font-serif text-5xl leading-tight text-foreground">Find a therapist for a referral</h1>
+          <p className="text-base text-muted-foreground">See openings, insurance, neighborhood, and who your colleagues know.</p>
         </div>
         <form className="grid gap-4 rounded-[28px] border bg-white/90 p-5 md:grid-cols-[1.6fr_repeat(4,1fr)]">
           <input
             className="w-full rounded-2xl border bg-background px-4 py-3 text-sm"
             defaultValue={query}
             name="q"
-            placeholder="Search by name, specialty, neighborhood, or approach"
+            placeholder="Search by name, specialty, neighborhood, or referral need"
           />
           <select className="w-full rounded-2xl border bg-background px-4 py-3 text-sm" defaultValue={region} name="region">
             <option value="">All Austin metro areas</option>
@@ -91,6 +91,7 @@ export default async function DirectoryPage({
             Showing {pagedTherapists.length} therapist{pagedTherapists.length === 1 ? "" : "s"}
             {query ? ` for "${query}"` : ""}.
           </p>
+          <p>Each card shows openings, payment, and colleague referrals.</p>
         </div>
         {pagedTherapists.length > 0 ? (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -101,7 +102,7 @@ export default async function DirectoryPage({
         ) : (
           <EmptyState
             title="No therapists match those filters"
-            description="Try broadening the search or removing a filter. As more active members complete their public profile, directory coverage will deepen."
+            description="Try a broader search or remove a filter."
           />
         )}
 

@@ -1,7 +1,10 @@
 {
-  "name": "atx-therapy-collective",
+  "name": "austin-therapist-exchange",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,9 +12,13 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "bootstrap:mvp": "node scripts/bootstrap-mvp.mjs",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare deploy",
+    "cf:upload": "opennextjs-cloudflare upload",
+    "preview": "npm run cf:build && npm run cf:preview",
+    "deploy": "npm run cf:build && npm run cf:deploy",
+    "upload": "npm run cf:build && npm run cf:upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
