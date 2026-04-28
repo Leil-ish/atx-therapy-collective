@@ -456,7 +456,7 @@ export async function getReferralCandidateTherapists(
   const { data: rawProfiles } = await admin
     .from("profiles")
     .select("id, slug, city, membership_tier, role, membership_state")
-    .eq("membership_state", "active")
+    .in("membership_state", ["active", "pending"])
     .in("role", ["therapist", "admin"]);
 
   const profiles = ((rawProfiles ?? []) as Array<Record<string, unknown>>).filter((profile) =>
