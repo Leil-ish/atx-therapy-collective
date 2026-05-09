@@ -6,13 +6,19 @@ import { Button } from "@/components/ui/button";
 
 const publicNav = [
   { href: "/directory", label: "Directory" },
+  { href: "/about", label: "How it works" }
+] as const;
+
+const memberNav = [
+  { href: "/directory", label: "Directory" },
   { href: "/member/referrals", label: "Referrals" },
-  { href: "/member/network", label: "Colleagues" }
+  { href: "/member/network", label: "Network" },
+  { href: "/member/profile", label: "Profile" }
 ] as const;
 
 export async function SiteHeader() {
   const session = await getSession();
-  const navItems = publicNav;
+  const navItems = session ? memberNav : publicNav;
 
   return (
     <header className="sticky top-0 z-20 border-b border-primary/10 bg-[rgba(255,251,245,0.9)] backdrop-blur">
@@ -41,25 +47,20 @@ export async function SiteHeader() {
 
         <div className="flex items-center gap-3">
           {session ? (
+            <form action={signOut}>
+              <Button type="submit" variant="outline">
+                Sign out
+              </Button>
+            </form>
+          ) : (
             <>
               <Button asChild variant="ghost">
-                <Link href="/member/referrals">Go to referrals</Link>
+                <Link href="/login">Sign in</Link>
               </Button>
-              <form action={signOut}>
-                <Button type="submit" variant="outline">
-                  Sign out
-                </Button>
-              </form>
+              <Button asChild variant="outline">
+                <Link href="/join/apply">Request access</Link>
+              </Button>
             </>
-          ) : (
-            <Button asChild variant="ghost">
-              <Link href="/login">Sign in</Link>
-            </Button>
-          )}
-          {session ? null : (
-            <Button asChild variant="outline">
-              <Link href="/join/apply">Request access</Link>
-            </Button>
           )}
         </div>
       </div>
